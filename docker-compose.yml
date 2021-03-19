@@ -1,0 +1,25 @@
+version: '2.1'
+
+services:
+  mariadb:
+    image: 'docker.io/bitnami/mariadb:10.4'
+    ports:
+      - '3306:3306'
+    environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
+      - MARIADB_DATABASE=privacyidea
+      - MARIADB_USER=privacyidea
+      - MARIADB_PASSWORD=privacyidea
+  privacyidea:
+    image: 'docker.io/khalibre/privacyidea:latest'
+    ports:
+      - '80:80'
+    environment:
+      - DB_VENDOR=mariadb
+      - DB_NAME=privacyidea
+      - DB_HOST=mariadb
+      - DB_USER=privacyidea
+      - DB_PASSWORD=privacyidea
+      - SECRET_KEY=suppersecretkey
+      - PI_PEPPER=secretworduseforadminencrypt
