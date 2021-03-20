@@ -4,7 +4,11 @@ name: CI
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ main ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - 'main'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -22,6 +26,16 @@ jobs:
         name: Checkout
         uses: actions/checkout@v2
       -
+        name: Docker meta
+        id: docker_meta
+        uses: crazy-max/ghaction-docker-meta@v1
+        with:
+          # list of Docker images to use as base name for tags
+          images: |
+            khalibre/privacyidea
+          # add git short SHA as Docker tag
+          tag-sha: true
+      -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       -
@@ -38,5 +52,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          push: true
-          tags: khalibre/privacyidea:latest
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.docker_meta.outputs.tags }}
+          labels: ${{ steps.docker_meta.outputs.labels }}
