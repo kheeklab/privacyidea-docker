@@ -20,6 +20,7 @@ PI_AUDIT_KEY_PRIVATE = os.environ.get("PI_AUDIT_KEY_PRIVATE", "/data/privacyidea
 PI_AUDIT_KEY_PUBLIC = os.environ.get("PI_AUDIT_KEY_PUBLIC", "/data/privacyidea/keys/public.pem")
 PI_LOGFILE = os.environ.get("PI_LOGFILE", "/data/privacyidea/privacyidea.log")
 PI_LOGLEVEL = logging.getLevelName(os.environ.get("PI_LOGLEVEL", "INFO"))
+PI_NODE = os.environ.get("HOSTNAME", "localnode")
 CACHE_TYPE = os.environ.get("CACHE_TYPE", "simple")
 PI_EXTERNAL_LINKS = os.environ.get("PI_EXTERNAL_LINKS", "True").lower() == "true"
 # PI_GNUPG_HOME = "gpg"

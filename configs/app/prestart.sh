@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "${DB_VENDOR}" = "mariadb" ]; then
+if [ "${DB_VENDOR}" = "mariadb" ] || [ "${DB_VENDOR}" = "mysql" ]; then
     echo "Using $DB_VENDOR..."
     [ -z "$DB_HOST" ] && echo "DB_HOST should be defined" && return 1
     [ -z "$DB_USER" ] && echo "DB_USER should be defined" && return 1
@@ -21,6 +21,12 @@ if [ "${PI_SKIP_BOOTSTRAP}" = false ]; then
         pi-manage create_audit_keys
     fi
     pi-manage createdb
-    pi-manage db stamp head -d /usr/local/lib/privacyidea//migrations/
-    pi-manage admin add admin -p privacyidea
+    pi-manage db stamp head -d /usr/local/lib/privacyidea/migrations/
+    if [ -z ${PI_ADMIN_USER}] && [ -z ${PI_ADMIN_PASSWORD} ]; then
+        echo "Create deafult admin user. Not recommented in production. Please set PI_ADMIN_USER and PI_ADMIN_PASSWORD in production enviroment."
+        pi-manage admin add admin -p privacyidea
+    else
+        echo "Create admin user from definded enviroment variables."
+        pi-manage admin add ${PI_ADMIN_USER} -p ${PI_ADMIN_PASSWORD}
+    fi
 fi
