@@ -9,9 +9,8 @@ if [ "${DB_VENDOR}" = "mariadb" ]; then
     export SQLALCHEMY_DATABASE_URI=pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
 else
     echo "DB_VENDOR enviroment varaible is not set. Using default SQLite..."
-    return 0
 fi
-if [ ${PI_SKIP_BOOTSTRAP} = false ]; then
+if [ "${PI_SKIP_BOOTSTRAP}" = false ]; then
     if [ ! -f /data/privacyidea/encfile ]; then
         pi-manage create_enckey
     fi
