@@ -1,32 +1,79 @@
-FROM python:3.8.8
+FROM python:3.8.8-buster
 
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
-ENV PYTHONPATH=/app \
-    PI_SKIP_BOOTSTRAP=false \
+ENV PI_SKIP_BOOTSTRAP=false \
     DB_VENDOR=sqlite \
     PI_VERSION=3.5.1
 
-RUN apt-get update; \
-    pip install meinheld gunicorn pymysql-sa PyMySQL; \
-    pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt; \
-    pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
+COPY ./configs/install-nginx-debian.sh /
 
-COPY ./configs/gunicorn_conf.py /gunicorn_conf.py
-COPY ./configs/config.py /etc/privacyidea/pi.cfg
-COPY ./configs/app /app
-COPY ./configs/entrypoint.sh /entrypoint.sh
-COPY ./configs/start.sh /start.sh
-RUN chmod +x /start.sh; \
-    chmod +x /entrypoint.sh
-
-WORKDIR /app/
-VOLUME [ "/data/privacyidea" ]
+RUN bash /install-nginx-debian.sh
 
 EXPOSE 80
 
+# Expose 443, in case of LTS / HTTPS
+EXPOSE 443
+
+
+# COPY PI configuration
+COPY ./configs/config.py /etc/privacyidea/pi.cfg
+
+# Remove default configuration from Nginx
+RUN rm /etc/nginx/conf.d/default.conf
+# Copy the base uWSGI ini file to enable default dynamic uwsgi process number
+COPY ./configs/uwsgi.ini /etc/uwsgi/
+
+# Install Supervisord
+RUN set -xe; \
+    apt-get update && apt-get install -y supervisor ca-certificates gosu; \
+    gosu nobody true; \
+    rm -rf /var/lib/apt/lists/*
+# Custom Supervisord config
+COPY ./configs/supervisord-debian.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Install uWSGI and PrivacyIdea
+RUN pip install uwsgi pymysql-sa PyMySQL;\
+    pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt; \
+    pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
+
+# Which uWSGI .ini file should be used, to make it customizable
+ENV UWSGI_INI /app/uwsgi.ini
+
+# By default, run 2 processes
+ENV UWSGI_CHEAPER 2
+
+# By default, when on demand, run up to 16 processes
+ENV UWSGI_PROCESSES 16
+
+# By default, allow unlimited file sizes, modify it to limit the file sizes
+# To have a maximum of 1 MB (Nginx's default) change the line to:
+# ENV NGINX_MAX_UPLOAD 1m
+ENV NGINX_MAX_UPLOAD 0
+
+# By default, Nginx will run a single worker process, setting it to auto
+# will create a worker for each CPU core
+ENV NGINX_WORKER_PROCESSES 1
+
+# By default, Nginx listens on port 80.
+# To modify this, change LISTEN_PORT environment variable.
+# (in a Dockerfile or with an option for `docker run`)
+ENV LISTEN_PORT 80
+    # Copy start.sh script that will check for a /app/prestart.sh script and run it before starting the app
+COPY ./configs/start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Copy the entrypoint that will generate Nginx additional configs
+COPY ./configs/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 ENTRYPOINT ["/entrypoint.sh"]
 
+# Add demo app
+COPY ./configs/app /app
+WORKDIR /app
+VOLUME [ "/data/privacyidea" ]
+
 # Run the start script, it will check for an /app/prestart.sh script (e.g. for migrations)
-# And then will start Gunicorn with Meinheld
+# And then will start Supervisor, which in turn will start Nginx and uWSGI
 CMD ["/start.sh"]
