@@ -28,7 +28,6 @@ Login to http://localhost:5000 with "admin"/"privacyidea".
 > You must not use this in productive environment, since it contains fixed credentail, encryption keys!
 
 ## Advanced usage
-This image extended from [meinheld-gunicorn-docker](https://github.com/tiangolo/meinheld-gunicorn-docker). Some enviromment variables are inherited from parent image. Pease refer to above link for more infomation.
 
 ### PrivacyIdea Environment variables
 
@@ -45,3 +44,5 @@ This image extended from [meinheld-gunicorn-docker](https://github.com/tiangolo/
 - SECRET_KEY
 - PI_ADMIN_USER
 - PI_ADMIN_PASSWORD
+
+Inspired by https://github.com/tiangolo/uwsgi-nginx-docker
