@@ -26,14 +26,11 @@ COPY ./configs/uwsgi.ini /etc/uwsgi/
 
 # Install Supervisord
 RUN set -xe; \
-    apt-get update && apt-get install -y ca-certificates gosu; \
-    gosu nobody true; \
-    rm -rf /var/lib/apt/lists/*
-
-# Install uWSGI and PrivacyIdea
-RUN pip install supervisor uwsgi pymysql-sa PyMySQL;\
+    apt-get update && apt-get install -y ca-certificates; \
+    pip install supervisor uwsgi pymysql-sa PyMySQL;\
     pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt; \
-    pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
+    pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}; \
+    apt-get remove --purge --auto-remove -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Custom Supervisord config
 COPY ./configs/supervisord-debian.conf /etc/supervisor/supervisord.conf
@@ -55,6 +52,9 @@ ENV NGINX_MAX_UPLOAD 0
 # By default, Nginx will run a single worker process, setting it to auto
 # will create a worker for each CPU core
 ENV NGINX_WORKER_PROCESSES 1
+
+# By default, NGINX show NGINX version on error page and HTTP header
+ENV NGINX_SERVER_TOKENS 'off'
 
 # By default, Nginx listens on port 80.
 # To modify this, change LISTEN_PORT environment variable.

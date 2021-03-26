@@ -23,5 +23,6 @@ services:
       - DB_PASSWORD=privacyidea
       - SECRET_KEY=suppersecretkey
       - PI_PEPPER=secretworduseforadminencrypt
+      - PI_PAGE_TITLE=pivacyIDEA
     depends_on:
       - mariadb

@@ -11,6 +11,9 @@ USE_NGINX_WORKER_PROCESSES=${NGINX_WORKER_PROCESSES:-1}
 # Cannot exceed worker_rlimit_nofile, see NGINX_WORKER_OPEN_FILES below
 NGINX_WORKER_CONNECTIONS=${NGINX_WORKER_CONNECTIONS:-1024}
 
+# Hide Nginx server version on error pages and in the “Server HTTP” response header field
+NGINX_SERVER_TOKENS=${NGINX_SERVER_TOKENS:-off}
+
 # Get the listen port for Nginx, default to 80
 USE_LISTEN_PORT=${LISTEN_PORT:-80}
 
@@ -34,6 +37,7 @@ else
     content=$content'    access_log  /var/log/nginx/access.log  main;\n'
     content=$content'    sendfile        on;\n'
     content=$content'    keepalive_timeout  65;\n'
+    content=$content"    server_tokens ${NGINX_SERVER_TOKENS};\n"
     content=$content'    include /etc/nginx/conf.d/*.conf;\n'
     content=$content'}\n'
     content=$content'daemon off;\n'
