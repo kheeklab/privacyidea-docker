@@ -26,16 +26,17 @@ COPY ./configs/uwsgi.ini /etc/uwsgi/
 
 # Install Supervisord
 RUN set -xe; \
-    apt-get update && apt-get install -y supervisor ca-certificates gosu; \
+    apt-get update && apt-get install -y ca-certificates gosu; \
     gosu nobody true; \
     rm -rf /var/lib/apt/lists/*
-# Custom Supervisord config
-COPY ./configs/supervisord-debian.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Install uWSGI and PrivacyIdea
-RUN pip install uwsgi pymysql-sa PyMySQL;\
+RUN pip install supervisor uwsgi pymysql-sa PyMySQL;\
     pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt; \
     pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
+
+# Custom Supervisord config
+COPY ./configs/supervisord-debian.conf /etc/supervisor/supervisord.conf
 
 # Which uWSGI .ini file should be used, to make it customizable
 ENV UWSGI_INI /app/uwsgi.ini
