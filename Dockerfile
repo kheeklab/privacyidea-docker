@@ -4,7 +4,7 @@ LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
 ENV PI_SKIP_BOOTSTRAP=false \
     DB_VENDOR=sqlite \
-    PI_VERSION=3.5.1
+    PI_VERSION=3.5.2
 
 COPY ./configs/install-nginx-debian.sh /
 
