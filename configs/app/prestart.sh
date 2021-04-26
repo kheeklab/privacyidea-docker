@@ -22,7 +22,7 @@ if [ "${PI_SKIP_BOOTSTRAP}" = false ]; then
     fi
     pi-manage createdb
     pi-manage db stamp head -d /usr/local/lib/privacyidea/migrations/
-    if { [ -z ${PI_ADMIN_USER} ] && [ -z ${PI_ADMIN_PASSWORD} ]; } then
+    if { [ "${PI_SKIP_BOOTSTRAP}" = false ] && [ -z ${PI_ADMIN_USER} ] && [ -z ${PI_ADMIN_PASSWORD} ]; } then
         echo "Create deafult admin user. Not recommented in production. Please set PI_ADMIN_USER and PI_ADMIN_PASSWORD in production enviroment."
         pi-manage admin add admin -p privacyidea
     else
