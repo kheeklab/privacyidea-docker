@@ -12,7 +12,7 @@ if PI_PEPPER is None:
     print("PI_PEPPER not set! Refusing to start")
     sys.exit(1)
 # The realm, where users are allowed to login as administrators
-SUPERUSER_REALM = os.environ.get('SUPERUSER_REALM', '['administrator']')
+SUPERUSER_REALM = os.environ.get('SUPERUSER_REALM', ['administrator'])
 SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI', 'sqlite:////data/privacyidea/privacyidea.db')
 PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/encfile")
 PI_HSM = os.environ.get("PI_HSM", "default")
