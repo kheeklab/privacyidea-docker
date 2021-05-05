@@ -4,8 +4,8 @@
 # Ref: https://github.com/nginxinc/docker-nginx/blob/594ce7a8bc26c85af88495ac94d5cd0096b306f7/mainline/buster/Dockerfile
 
 # Standard set up Nginx
-export NGINX_VERSION=1.19.8
-export NJS_VERSION=0.5.2
+export NGINX_VERSION=1.19.10
+export NJS_VERSION=0.5.3
 export PKG_RELEASE=1~buster
 
 set -x \
