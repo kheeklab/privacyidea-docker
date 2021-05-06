@@ -1,4 +1,4 @@
-FROM python:3.8.8-buster
+FROM python:3.8.10-buster
 
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
