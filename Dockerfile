@@ -1,4 +1,4 @@
-FROM python:3.8.11-buster
+FROM python:3.8.12-buster
 
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
@@ -60,7 +60,7 @@ ENV NGINX_SERVER_TOKENS 'off'
 # To modify this, change LISTEN_PORT environment variable.
 # (in a Dockerfile or with an option for `docker run`)
 ENV LISTEN_PORT 80
-    # Copy start.sh script that will check for a /app/prestart.sh script and run it before starting the app
+# Copy start.sh script that will check for a /app/prestart.sh script and run it before starting the app
 COPY ./configs/start.sh /start.sh
 RUN chmod +x /start.sh
 
