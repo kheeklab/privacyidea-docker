@@ -4,25 +4,11 @@ LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
 ENV PI_SKIP_BOOTSTRAP=false \
     DB_VENDOR=sqlite \
-    PI_VERSION=3.6.2
+    PI_VERSION=3.6.3
 
 COPY ./configs/install-nginx-debian.sh /
 
 RUN bash /install-nginx-debian.sh
-
-EXPOSE 80
-
-# Expose 443, in case of LTS / HTTPS
-EXPOSE 443
-
-
-# COPY PI configuration
-COPY ./configs/config.py /etc/privacyidea/pi.cfg
-
-# Remove default configuration from Nginx
-RUN rm /etc/nginx/conf.d/default.conf
-# Copy the base uWSGI ini file to enable default dynamic uwsgi process number
-COPY ./configs/uwsgi.ini /etc/uwsgi/
 
 # Install Supervisord
 RUN set -xe; \
@@ -32,8 +18,20 @@ RUN set -xe; \
     pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}; \
     apt-get remove --purge --auto-remove -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
+# COPY PI configuration
+COPY ./configs/config.py /etc/privacyidea/pi.cfg
+
+# Remove default configuration from Nginx
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy the base uWSGI ini file to enable default dynamic uwsgi process number
+COPY ./configs/uwsgi.ini /etc/uwsgi/
+
 # Custom Supervisord config
 COPY ./configs/supervisord-debian.conf /etc/supervisor/supervisord.conf
+
+# Add demo app
+COPY ./configs/app /app
 
 # Which uWSGI .ini file should be used, to make it customizable
 ENV UWSGI_INI /app/uwsgi.ini
@@ -60,18 +58,23 @@ ENV NGINX_SERVER_TOKENS 'off'
 # To modify this, change LISTEN_PORT environment variable.
 # (in a Dockerfile or with an option for `docker run`)
 ENV LISTEN_PORT 80
-# Copy start.sh script that will check for a /app/prestart.sh script and run it before starting the app
-COPY ./configs/start.sh /start.sh
-RUN chmod +x /start.sh
 
+# Copy start.sh script that will check for a /app/prestart.sh script and run it before starting the app
 # Copy the entrypoint that will generate Nginx additional configs
-COPY ./configs/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY ["configs/start.sh", "configs/entrypoint.sh", "/"]
+
+# Make sure scripts can be executed and do some cleanup
+RUN chmod +x /entrypoint.sh /start.sh \
+    && apt-get clean autoclean \
+    && apt-get autoremove --yes \
+    && rm -rf /var/lib/{apt,dpkg,cache,log}/ \
+    && rm -rf /tmp/*
+
+EXPOSE 80/tcp
+EXPOSE 443/tcp
 
 ENTRYPOINT ["/entrypoint.sh"]
 
-# Add demo app
-COPY ./configs/app /app
 WORKDIR /app
 VOLUME [ "/data/privacyidea" ]
 
