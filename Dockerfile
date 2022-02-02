@@ -1,22 +1,26 @@
-FROM python:3.8.12-buster
+FROM nginx:1.21
 
-LABEL maintainer="Sida Say <sida.say@khalibre.com>"
+LABEL maintainer="michimau <mauro.michielon@eea.europa.eu>"
+#forked from https://github.com/Khalibre/privacyidea-docker
+#original maintainer="Sida Say <sida.say@khalibre.com>"
 
-ENV PI_SKIP_BOOTSTRAP=false \
-    DB_VENDOR=sqlite \
-    PI_VERSION=3.6.3
-
-COPY ./configs/install-nginx-debian.sh /
-
-RUN bash /install-nginx-debian.sh
-
-# Install Supervisord
 RUN set -xe; \
-    apt-get update && apt-get install -y ca-certificates; \
-    pip install supervisor uwsgi pymysql-sa PyMySQL;\
-    pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt; \
-    pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}; \
-    apt-get remove --purge --auto-remove -y ca-certificates && rm -rf /var/lib/apt/lists/*
+    apt-get -y update && \
+    apt-get install -y ca-certificates \
+    pip \
+    python3 \
+    python3-venv \
+    python3-wheel \
+    git \
+    supervisor
+
+RUN mkdir -p mkdir /etc/privacyidea/data/keys \
+    /opt/privacyidea \
+    /var/log/privacyidea && \
+    useradd -r -M -d /opt/privacyidea privacyidea && \
+    chown -R privacyidea:privacyidea /opt/privacyidea /etc/privacyidea /var/log/privacyidea
+
+#    apt-get remove --purge --auto-remove -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # COPY PI configuration
 COPY ./configs/config.py /etc/privacyidea/pi.cfg
@@ -32,6 +36,14 @@ COPY ./configs/supervisord-debian.conf /etc/supervisor/supervisord.conf
 
 # Add demo app
 COPY ./configs/app /app
+
+COPY ["configs/start.sh", "configs/entrypoint.sh", "/"]
+
+RUN chmod +x /entrypoint.sh /start.sh \
+    && apt-get clean autoclean \
+    && apt-get autoremove --yes \
+    && rm -rf /var/lib/{apt,dpkg,cache,log}/ \
+    && rm -rf /tmp/*
 
 # Which uWSGI .ini file should be used, to make it customizable
 ENV UWSGI_INI /app/uwsgi.ini
@@ -59,20 +71,29 @@ ENV NGINX_SERVER_TOKENS 'off'
 # (in a Dockerfile or with an option for `docker run`)
 ENV LISTEN_PORT 80
 
+#USER privacyidea
+
+ENV PI_SKIP_BOOTSTRAP=false \
+    DB_VENDOR=sqlite \
+    PI_VERSION=3.6.3
+
+ENV VIRTUAL_ENV=/opt/privacyidea
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN pip install wheel && \
+    pip install supervisor uwsgi pymysql-sa PyMySQL pg8000 && \
+    pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt && \
+    pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
+
 # Copy start.sh script that will check for a /app/prestart.sh script and run it before starting the app
 # Copy the entrypoint that will generate Nginx additional configs
-COPY ["configs/start.sh", "configs/entrypoint.sh", "/"]
-
 # Make sure scripts can be executed and do some cleanup
-RUN chmod +x /entrypoint.sh /start.sh \
-    && apt-get clean autoclean \
-    && apt-get autoremove --yes \
-    && rm -rf /var/lib/{apt,dpkg,cache,log}/ \
-    && rm -rf /tmp/*
 
 EXPOSE 80/tcp
 EXPOSE 443/tcp
 
+#USER privacyidea 
 ENTRYPOINT ["/entrypoint.sh"]
 
 WORKDIR /app
