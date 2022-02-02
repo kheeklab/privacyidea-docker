@@ -5,13 +5,14 @@ info:
 LOCAL_DATA_VOLUME=/tmp/privacyidea-data
 
 build:
-	docker build -t khalibre/privacyidea .
+	docker build -t michimau/privacyidea .
 
 push:
-	docker push khalibre/privacyidea
+	docker push michimau/privacyidea
 
-runserver: $(LOCAL_DATA_VOLUME) secretkey pipepper
-	docker run -v $(LOCAL_DATA_VOLUME):/data/privacyidea -p 80:80 -ti --env-file=secretkey --env-file=pipepper khalibre/privacyidea
+run: $(LOCAL_DATA_VOLUME) secretkey pipepper
+	#docker run -v $(LOCAL_DATA_VOLUME):/data/privacyidea -p 80:80 -ti --env-file=secretkey --env-file=pipepper michimau/privacyidea
+	docker run -p 80:80 -ti --env-file=secretkey --env-file=pipepper michimau/privacyidea
 
 
 $(LOCAL_DATA_VOLUME):
