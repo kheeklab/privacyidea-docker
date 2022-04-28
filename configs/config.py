@@ -24,9 +24,6 @@ PI_LOGLEVEL = logging.getLevelName(os.environ.get("PI_LOGLEVEL", "INFO"))
 PI_NODE = os.environ.get("HOSTNAME", "localnode")
 CACHE_TYPE = os.environ.get("CACHE_TYPE", "simple")
 PI_EXTERNAL_LINKS = os.environ.get("PI_EXTERNAL_LINKS", "True").lower() == "true"
-# PI_GNUPG_HOME = "gpg"
-# PI_LOGO = "otherlogo.png"
-# PI_AUDIT_SQL_URI = sqlite://
 PI_VASCO_LIBRARY = None
 PI_ENGINE_REGISTRY_CLASS = os.environ.get("PI_ENGINE_REGISTRY_CLASS", "shared")
 PI_PAGE_TITLE = os.environ.get("PI_PAGE_TITLE", "privacyIDEA Authentication System")

@@ -1,8 +1,6 @@
 FROM nginx:1.21
 
-LABEL maintainer="michimau <mauro.michielon@eea.europa.eu>"
-#forked from https://github.com/Khalibre/privacyidea-docker
-#original maintainer="Sida Say <sida.say@khalibre.com>"
+LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
 RUN set -xe; \
     apt-get -y update && \
@@ -17,29 +15,31 @@ RUN set -xe; \
 RUN mkdir -p mkdir /etc/privacyidea/data/keys \
     /opt/privacyidea \
     /var/log/privacyidea && \
-    useradd -r -M -d /opt/privacyidea privacyidea && \
+    adduser --gecos "PrivacyIdea User" --disabled-password --home /home/privacyidea privacyidea --uid 1001 && \
+    addgroup privacyidea privacyidea && \
+    usermod -g 1001 privacyidea && \
     chown -R privacyidea:privacyidea /opt/privacyidea /etc/privacyidea /var/log/privacyidea
 
 #    apt-get remove --purge --auto-remove -y ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # COPY PI configuration
-COPY ./configs/config.py /etc/privacyidea/pi.cfg
+COPY --chown=privacyidea:privacyidea ./configs/config.py /etc/privacyidea/pi.cfg
 
 # Remove default configuration from Nginx
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Copy the base uWSGI ini file to enable default dynamic uwsgi process number
-COPY ./configs/uwsgi.ini /etc/uwsgi/
+COPY --chown=privacyidea:privacyidea ./configs/uwsgi.ini /etc/uwsgi/
 
 # Custom Supervisord config
-COPY ./configs/supervisord-debian.conf /etc/supervisor/supervisord.conf
+COPY --chown=privacyidea:privacyidea ./configs/supervisord-debian.conf /etc/supervisor/supervisord.conf
 
 # Add demo app
-COPY ./configs/app /app
+COPY --chown=privacyidea:privacyidea ./configs/app /app
 
-COPY ["configs/start.sh", "configs/entrypoint.sh", "/"]
+COPY scripts/* /usr/local/bin/
 
-RUN chmod +x /entrypoint.sh /start.sh \
+RUN chmod +x /usr/local/bin/*.sh \
     && apt-get clean autoclean \
     && apt-get autoremove --yes \
     && rm -rf /var/lib/{apt,dpkg,cache,log}/ \
@@ -75,7 +75,8 @@ ENV LISTEN_PORT 80
 
 ENV PI_SKIP_BOOTSTRAP=false \
     DB_VENDOR=sqlite \
-    PI_VERSION=3.6.3
+    PI_VERSION=3.7 \
+    PI_HOME=/opt/privacyidea
 
 ENV VIRTUAL_ENV=/opt/privacyidea
 RUN python3 -m venv $VIRTUAL_ENV
@@ -93,12 +94,8 @@ RUN pip install wheel && \
 EXPOSE 80/tcp
 EXPOSE 443/tcp
 
-#USER privacyidea 
-ENTRYPOINT ["/entrypoint.sh"]
+#USER privacyidea
+ENTRYPOINT ["/usr/local/bin/privacyidea_entrypoint.sh"]
 
 WORKDIR /app
 VOLUME [ "/data/privacyidea" ]
-
-# Run the start script, it will check for an /app/prestart.sh script (e.g. for migrations)
-# And then will start Supervisor, which in turn will start Nginx and uWSGI
-CMD ["/start.sh"]
