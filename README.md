@@ -92,7 +92,7 @@ You can provide files to the container in several ways.
 
 All of the use cases require making files available on container creation. Bind mounts and volumes accomplish this.Applying config files can be accomplished on container creation using bind mounts and volumes, or at run time using docker cp.
 
-Bind mounts are used in the examples here as they are simpler than volumes for providing files. As you prepare files for mounting to a container, it’s helpful to organize them in a way that’s easiest for you to manage. Bind mounting to Liferay containers, organizing files, and using docker cp are covered here.
+Bind mounts are used in the examples here as they are simpler than volumes for providing files. As you prepare files for mounting to a container, it’s helpful to organize them in a way that’s easiest for you to manage. Bind mounting to privacyIDEA containers, organizing files, and using docker cp are covered here.
 
 ### Bind Mount Format
 You can specify any number of bind mounts to a docker run command. Each bind mount follows this format:
@@ -115,7 +115,7 @@ The container scans these folders.
 
 ## Container Lifecycle and API
 
-At a high level, the container starts Tomcat with Liferay deployed on it. Additionally, however, the container entry point provides an API for executing these use cases:
+At a high level, the container starts Supervisd with privacyIDEA deployed on it. Additionally, however, the container entry point provides an API for executing these use cases:
 
   - Invoking scripts
   - Configuring NGINX and privacyIDEA
