@@ -2,6 +2,8 @@
 
 This is a build environment to build a docker image for privacyIDEA base on [official NGINX image](https://hub.docker.com/_/nginx) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
+**Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide commercial license of any of these products. This listing has an open source license. privacyIDEA is run and maintained by NetKnights, that is a completely and separate project from Khalibre.
+
 ## The image
 The docker image is a self contained Debain with privacyIDEA installed, which will run on every distribution.
 
