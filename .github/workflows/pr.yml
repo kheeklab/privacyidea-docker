@@ -25,13 +25,15 @@ jobs:
       -
         name: Docker meta
         id: docker_meta
-        uses: crazy-max/ghaction-docker-meta@v3.8.0
+        uses: docker/metadata-action@v4.0.1
         with:
           # list of Docker images to use as base name for tags
           images: |
             khalibre/privacyidea
           # add git short SHA as Docker tag
-          tag-sha: true
+          tags: |
+            # minimal (short sha)
+            type=sha
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
