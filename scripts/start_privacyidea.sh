@@ -50,7 +50,7 @@ function prestart_privacyidea {
     [ -z "$DB_NAME" ] && echo "DB_NAME should be defined" && return 1
     export SQLALCHEMY_DATABASE_URI=pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
     elif { [ "${DB_VENDOR}" = "postgresql" ]; } then
-        export SQLALCHEMY_DATABASE_URI=postgresql+pg8000://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
+        export SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
     else
         echo "DB_VENDOR enviroment varaible is not set. Using default SQLite..."
     fi

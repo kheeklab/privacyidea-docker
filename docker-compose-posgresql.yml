@@ -1,0 +1,26 @@
+version: '2.1'
+
+services:
+  postgresql:
+    image: 'docker.io/bitnami/postgresql:14'
+    ports:
+      - '5432:5432'
+    environment:
+      - POSTGRESQL_DATABASE=privacyidea
+      - POSTGRESQL_USERNAME=privacyidea
+      - POSTGRESQL_PASSWORD=privacyidea
+  privacyidea:
+    image: 'docker.io/khalibre/privacyidea:dev'
+    ports:
+      - '80:80'
+    environment:
+      - DB_VENDOR=postgresql
+      - DB_NAME=privacyidea
+      - DB_HOST=postgresql
+      - DB_USER=privacyidea
+      - DB_PASSWORD=privacyidea
+      - SECRET_KEY=suppersecretkey
+      - PI_PEPPER=secretworduseforadminencrypt
+      - PI_PAGE_TITLE=pivacyIDEA
+    depends_on:
+      - postgresql
