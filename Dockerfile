@@ -75,7 +75,7 @@ ENV LISTEN_PORT 80
 
 ENV PI_SKIP_BOOTSTRAP=false \
     DB_VENDOR=sqlite \
-    PI_VERSION=3.7 \
+    PI_VERSION=3.7.1 \
     PI_HOME=/opt/privacyidea
 
 ENV VIRTUAL_ENV=/opt/privacyidea
@@ -83,7 +83,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 RUN pip install wheel && \
-    pip install supervisor uwsgi pymysql-sa PyMySQL pg8000 && \
+    pip install supervisor uwsgi pymysql-sa PyMySQL psycopg2-binary && \
     pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt && \
     pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
 
