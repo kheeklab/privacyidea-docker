@@ -12,7 +12,7 @@ services:
       - MARIADB_USER=privacyidea
       - MARIADB_PASSWORD=privacyidea
   privacyidea:
-    image: 'docker.io/khalibre/privacyidea:latest'
+    image: 'khalibre/privacyidea:dev'
     ports:
       - '80:80'
     environment:

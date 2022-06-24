@@ -4,14 +4,14 @@ source /usr/local/bin/_privacyidea_common.sh
 
 function main {
     echo "[PrivacyIDEA] To SSH into this container, run: \"docker exec -it ${HOSTNAME} /bin/bash\"."
-	echo ""
+    echo ""
 
     if [ -d /etc/privacyidea/mount ]
-	then
-		PI_MOUNT_DIR=/etc/privacyidea/mount
-	else
-		PI_MOUNT_DIR=/mnt/privacyidea
-	fi
+    then
+        PI_MOUNT_DIR=/etc/privacyidea/mount
+    else
+        PI_MOUNT_DIR=/mnt/privacyidea
+    fi
 
     export PI_MOUNT_DIR
 
