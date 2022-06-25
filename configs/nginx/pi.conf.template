@@ -1,5 +1,6 @@
 server {
     listen $LISTEN_PORT;
+    listen [::]:$LISTEN_PORT;
     client_max_body_size $NGINX_MAX_UPLOAD;
     location / {
         include uwsgi_params;
