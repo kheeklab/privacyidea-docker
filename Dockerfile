@@ -1,16 +1,12 @@
-FROM nginx:1.22.0
+FROM python:3.8.13-bullseye
 
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
+ARG REQUIRED_PACKAGE="ca-certificates git supervisor gettext-base nginx"
+
 RUN set -xe; \
     apt-get -y update && \
-    apt-get install -y ca-certificates \
-    pip \
-    python3 \
-    python3-venv \
-    python3-wheel \
-    git \
-    supervisor
+    apt-get install -y ${REQUIRED_PACKAGE}
 
 RUN mkdir -p mkdir /etc/privacyidea/data/keys \
     /opt/privacyidea \
@@ -26,7 +22,7 @@ RUN mkdir -p mkdir /etc/privacyidea/data/keys \
 COPY --chown=privacyidea:privacyidea ./configs/pi-config.template /etc/privacyidea/pi-config.template
 
 # Remove default configuration from Nginx
-RUN rm /etc/nginx/conf.d/default.conf
+# RUN rm /etc/nginx/conf.d/default.conf
 
 COPY ./configs/nginx /etc/nginx/templates
 
@@ -84,10 +80,10 @@ ENV VIRTUAL_ENV=/opt/privacyidea
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-RUN pip install wheel && \
-    pip install supervisor uwsgi pymysql-sa PyMySQL psycopg2-binary && \
-    pip install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt && \
-    pip install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
+RUN pip3 install wheel && \
+    pip3 install supervisor uwsgi pymysql-sa PyMySQL psycopg2-binary && \
+    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt && \
+    pip3 install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
 
 EXPOSE 80/tcp
 EXPOSE 443/tcp

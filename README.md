@@ -48,9 +48,9 @@ The Khalibre privacyIDEA requires a database to work. This is configured with th
 
 ### NGINX configuration
 
-  - `USE_NGINX_MAX_UPLOAD`: Get the maximum upload file size for Nginx, default to 0: unlimited
-  - `USE_NGINX_WORKER_PROCESSES`: Get the number of workers for Nginx, default to 1
-  - `NGINX_WORKER_CONNECTIONS`: Set the max number of connections per worker for Nginx, if requested. Cannot exceed worker_rlimit_nofile, see NGINX_WORKER_OPEN_FILES below
+  - `NGINX_MAX_UPLOAD`: Get the maximum upload file size for Nginx, default to 100Mb
+  - `NGINX_WORKER_PROCESSES`: Get the number of workers for Nginx, default to 1
+  - `NGINX_WORKER_CONNECTIONS`: Set the max number of connections per worker for Nginx, if requested.
   - `NGINX_SERVER_TOKENS`: Hide Nginx server version on error pages and in the “Server HTTP” response header field
   - `USE_LISTEN_PORT`: Get the listen port for Nginx, default to 80
 
