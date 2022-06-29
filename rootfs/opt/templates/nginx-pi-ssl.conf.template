@@ -1,0 +1,22 @@
+server {
+    listen $NGINX_LISTEN_SSL_PORT ssl;
+    listen [::]:$NGINX_LISTEN_SSL_PORT ssl;
+
+    ssl_certificate    $NGINX_SSL_CERT;
+    ssl_certificate_key $NGINX_SSL_KEY;
+
+    ssl_session_cache    shared:SSL:1m;
+    ssl_session_timeout  5m;
+
+    ssl_ciphers  HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers  on;
+
+    proxy_http_version 1.1;
+
+    client_max_body_size $NGINX_MAX_UPLOAD;
+    location / {
+
+        include uwsgi_params;
+        uwsgi_pass unix:///tmp/uwsgi.sock;
+    }
+}

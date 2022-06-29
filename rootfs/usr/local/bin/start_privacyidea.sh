@@ -21,13 +21,21 @@ function generate_pi_config {
         [ -z "$DB_USER" ] && echo "DB_USER should be defined" && return 1
         [ -z "$DB_PASSWORD" ] && echo "DB_PASSWORD should be defined" && return 1
         [ -z "$DB_NAME" ] && echo "DB_NAME should be defined" && return 1
-        export SQLALCHEMY_DATABASE_URI=pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
+        if [ -z "$DB_PORT" ]; then
+            echo DB_PORT is not defined using default port
+            export DB_PORT=3306
+        fi
+        export SQLALCHEMY_DATABASE_URI=pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
     elif { [ "${DB_VENDOR}" = "postgresql" ]; } then
         [ -z "$DB_HOST" ] && echo "DB_HOST should be defined" && return 1
         [ -z "$DB_USER" ] && echo "DB_USER should be defined" && return 1
         [ -z "$DB_PASSWORD" ] && echo "DB_PASSWORD should be defined" && return 1
         [ -z "$DB_NAME" ] && echo "DB_NAME should be defined" && return 1
-        export SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}
+        if [ -z "$DB_PORT" ]; then
+            echo DB_PORT is not defined using default port
+            export DB_PORT=5432
+        fi
+        export SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
     else
         echo "DB_VENDOR enviroment varaible is not set. Using default SQLite..."
         echo ""
@@ -40,7 +48,7 @@ function generate_pi_config {
         then
             echo "SQLALCHEMY_DATABASE_URI is undefieded"
         else
-            envsubst < /etc/privacyidea/pi-config.template > /etc/privacyidea/pi.cfg
+            envsubst < /opt/templates/pi-config.template > /etc/privacyidea/pi.cfg
         fi
     fi
 }
@@ -77,6 +85,8 @@ function prestart_privacyidea {
     fi
 
     if [ "${PI_SKIP_BOOTSTRAP}" = false ]; then
+        ls -l /data
+         ls -l /data/privacyidea
         if [ ! -f /etc/privacyidea/encfile ]; then
             pi-manage create_enckey
         fi
