@@ -1,5 +1,7 @@
 # PrivacyIDEA Docker Image
 
+![main workflow](https://github.com/Khalibre/privacyidea-docker/actions/workflows/main.yml/badge.svg)
+
 This is a build environment to build a docker image for privacyIDEA based on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
 **Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from Khalibre.
