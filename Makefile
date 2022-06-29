@@ -11,7 +11,7 @@ push:
 	docker push michimau/privacyidea
 
 run: cleanup create_volume secretkey pipepper
-	docker run -v $(LOCAL_DATA_VOLUME):/data/privacyidea -p 80:80 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper khalibre/privacyidea:dev
+	docker run -p 80:80 -p 443:443 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper khalibre/privacyidea:dev
 
 create_volume:
 	mkdir $(LOCAL_DATA_VOLUME)

@@ -1,11 +1,11 @@
 # PrivacyIdea Docker Image
 
-This is a build environment to build a docker image for privacyIDEA base on [official NGINX image](https://hub.docker.com/_/nginx) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
+This is a build environment to build a docker image for privacyIDEA base on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
 **Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide commercial license of any of these products. This listing has an open source license. privacyIDEA is run and maintained by NetKnights, that is a completely and separate project from Khalibre.
 
 ## The image
-The docker image is a self contained Debain with privacyIDEA installed, which will run on every distribution.
+The docker image is a self contained Debain with privacyIDEA and NGINX installed, which will run on every distribution.
 
 ## Building
 
@@ -40,7 +40,7 @@ The Khalibre privacyIDEA container can create a default admin user by setting th
 
 The Khalibre privacyIDEA requires a database to work. This is configured with the following environment variables:
 
-  - `DB_VENDOR`: Database vendor (support mysql or posgresql) No defaults.
+  - `DB_VENDOR`: Database vendor (support mysql, mariadb or posgresql) No defaults.
   - `DB_USER`: Database user. No defaults.
   - `DB_PASSWORD`: Database. No defaults.
   - `DB_NAME`: Database name. No defaults.
@@ -48,11 +48,15 @@ The Khalibre privacyIDEA requires a database to work. This is configured with th
 
 ### NGINX configuration
 
+  - `NGINX_LISTEN_PORT`: Get the listen port for Nginx, default to 80
+  - `NGINX_LISTEN_SSL_PORT`: Get the secured listen port for Nginx, default to 443
   - `NGINX_MAX_UPLOAD`: Get the maximum upload file size for Nginx, default to 100Mb
-  - `NGINX_WORKER_PROCESSES`: Get the number of workers for Nginx, default to 1
-  - `NGINX_WORKER_CONNECTIONS`: Set the max number of connections per worker for Nginx, if requested.
   - `NGINX_SERVER_TOKENS`: Hide Nginx server version on error pages and in the “Server HTTP” response header field
-  - `USE_LISTEN_PORT`: Get the listen port for Nginx, default to 80
+  - `NGINX_SSL_CERT`: Path to SSL certificate, default to **/etc/nginx/certs/pi-server-cert.pem**
+  - `NGINX_SSL_ENABLED`: Set to true to enable SSL, default **false**
+  - `NGINX_SSL_KEY`: Path to SSL key, default **/etc/nginx/certs/pi-server-key.pem**
+  - `NGINX_WORKER_CONNECTIONS`: Set the max number of connections per worker for Nginx, if requested.
+  - `NGINX_WORKER_PROCESSES`: Get the number of workers for Nginx, default to 1
 
 ### privacyIDEA configuration
 

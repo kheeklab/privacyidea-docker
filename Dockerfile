@@ -2,48 +2,22 @@ FROM python:3.8.13-bullseye
 
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
-ARG REQUIRED_PACKAGE="ca-certificates git supervisor gettext-base nginx"
+COPY prebuildfs /
 
-RUN set -xe; \
-    apt-get -y update && \
-    apt-get install -y ${REQUIRED_PACKAGE}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+RUN install_packages ca-certificates git supervisor gettext-base nginx
 
 RUN mkdir -p mkdir /etc/privacyidea/data/keys \
-    /opt/privacyidea \
     /var/log/privacyidea && \
     adduser --gecos "PrivacyIdea User" --disabled-password --home /home/privacyidea privacyidea --uid 1001 && \
     addgroup privacyidea privacyidea && \
     usermod -g 1001 privacyidea && \
-    chown -R privacyidea:privacyidea /opt/privacyidea /etc/privacyidea /var/log/privacyidea
+    chown -R privacyidea:privacyidea /etc/privacyidea /var/log/privacyidea
 
-#    apt-get remove --purge --auto-remove -y ca-certificates && rm -rf /var/lib/apt/lists/*
-
-# COPY PI configuration
-COPY --chown=privacyidea:privacyidea ./configs/pi-config.template /etc/privacyidea/pi-config.template
-
-# Remove default configuration from Nginx
-# RUN rm /etc/nginx/conf.d/default.conf
-
-COPY ./configs/nginx /etc/nginx/templates
-
-# Copy the base uWSGI ini file to enable default dynamic uwsgi process number
-COPY --chown=privacyidea:privacyidea ./configs/uwsgi.ini /etc/uwsgi/
-
-# Custom Supervisord config
-COPY --chown=privacyidea:privacyidea ./configs/supervisord-debian.conf /etc/supervisor/supervisord.conf
-
-COPY --chown=privacyidea:privacyidea ./configs/app /app
-
-COPY scripts/* /usr/local/bin/
-
-RUN chmod +x /usr/local/bin/*.sh \
-    && apt-get clean autoclean \
-    && apt-get autoremove --yes \
-    && rm -rf /var/lib/{apt,dpkg,cache,log}/ \
-    && rm -rf /tmp/*
+COPY rootfs /
 
 # Which uWSGI .ini file should be used, to make it customizable
-ENV UWSGI_INI /app/uwsgi.ini
+ENV UWSGI_INI /etc/uwsgi/uwsgi.ini
 
 # By default, run 2 processes
 ENV UWSGI_CHEAPER 2
@@ -68,28 +42,32 @@ ENV NGINX_WORKER_CONNECTIONS 1024
 # By default, Nginx listens on port 80.
 # To modify this, change LISTEN_PORT environment variable.
 # (in a Dockerfile or with an option for `docker run`)
-ENV LISTEN_PORT 80
+ENV NGINX_LISTEN_PORT 80
+ENV NGINX_LISTEN_SSL_PORT 443
+
+ENV NGINX_SSL_ENABLED true
 
 ENV PI_SKIP_BOOTSTRAP=false \
     DB_VENDOR=sqlite \
-    PI_HOME=/opt/privacyidea
+    PI_HOME=/opt/privacyidea \
+    VIRTUAL_ENV=/opt/privacyidea
+
+RUN python3 -m venv $VIRTUAL_ENV
+
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 ARG PI_VERSION=3.7.1
 
-ENV VIRTUAL_ENV=/opt/privacyidea
-RUN python3 -m venv $VIRTUAL_ENV
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
 RUN pip3 install wheel && \
-    pip3 install supervisor uwsgi pymysql-sa PyMySQL psycopg2-binary && \
+    pip3 install uwsgi pymysql-sa PyMySQL psycopg2-binary && \
     pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt && \
     pip3 install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
 
 EXPOSE 80/tcp
 EXPOSE 443/tcp
 
-
 ENTRYPOINT ["/usr/local/bin/privacyidea_entrypoint.sh"]
 
-WORKDIR /app
+WORKDIR /opt/privacyidea
+
 VOLUME [ "/data/privacyidea" ]
