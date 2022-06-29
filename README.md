@@ -1,11 +1,11 @@
-# PrivacyIdea Docker Image
+# PrivacyIDEA Docker Image
 
-This is a build environment to build a docker image for privacyIDEA base on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
+This is a build environment to build a docker image for privacyIDEA based on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
-**Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide commercial license of any of these products. This listing has an open source license. privacyIDEA is run and maintained by NetKnights, that is a completely and separate project from Khalibre.
+**Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from Khalibre.
 
 ## The image
-The docker image is a self contained Debain with privacyIDEA and NGINX installed, which will run on every distribution.
+The docker image is a self-contained Debian with privacyIDEA and NGINX installed, which will run on every distribution.
 
 ## Building
 
@@ -25,11 +25,11 @@ make run
 
 Login to http://localhost with "admin"/"privacyidea".
 
-> You must not use this in productive environment, since it contains fixed credentail, encryption keys!
+> You must not use this in a production environment, since it contains fixed credentials and encryption keys!
 
 ## Configuration
 
-### Admin credentails
+### Admin credentials
 
 The Khalibre privacyIDEA container can create a default admin user by setting the following environment variables:
 
@@ -96,7 +96,7 @@ You can provide files to the container in several ways.
   - [Volumes](https://docs.docker.com/storage/volumes/)
   - [Using docker cp](https://docs.docker.com/engine/reference/commandline/cp/)
 
-All of the use cases require making files available on container creation. Bind mounts and volumes accomplish this.Applying config files can be accomplished on container creation using bind mounts and volumes, or at run time using docker cp.
+All of the use cases require making files available on container creation. Bind mounts and volumes accomplish this. Applying config files can be accomplished on container creation using bind mounts and volumes, or at run time using docker cp.
 
 Bind mounts are used in the examples here as they are simpler than volumes for providing files. As you prepare files for mounting to a container, it’s helpful to organize them in a way that’s easiest for you to manage. Bind mounting to privacyIDEA containers, organizing files, and using docker cp are covered here.
 
@@ -121,7 +121,7 @@ The container scans these folders.
 
 ## Container Lifecycle and API
 
-At a high level, the container starts Supervisd with privacyIDEA deployed on it. Additionally, however, the container entry point provides an API for executing these use cases:
+At a high level, the container starts supervisord with privacyIDEA deployed on it. Additionally, however, the container entry point provides an API for executing these use cases:
 
   - Invoking scripts
   - Configuring NGINX and privacyIDEA
@@ -151,4 +151,4 @@ The key folders above have subfolders that are designated for specific actions. 
 
 ## Contributing
 
-We'd love for you to contribute to this container. You can request new features by creating an issue, or submit a pull request with your contribution.
+We'd love for you to contribute to this container. You can request new features by creating an issue, or submitting a pull request with your contribution.
