@@ -1,6 +1,6 @@
 # PrivacyIDEA Docker Image
 
-![main workflow](https://github.com/Khalibre/privacyidea-docker/actions/workflows/main.yml/badge.svg)
+![main workflow](https://github.com/Khalibre/privacyidea-docker/actions/workflows/main.yml/badge.svg) ![GitHub](https://img.shields.io/github/license/Khalibre/privacyidea-docker) ![Docker Pulls](https://img.shields.io/docker/pulls/khalibre/privacyidea) ![GitHub Repo stars](https://img.shields.io/github/stars/Khalibre/privacyidea-docker)
 
 This is a build environment to build a docker image for privacyIDEA based on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
