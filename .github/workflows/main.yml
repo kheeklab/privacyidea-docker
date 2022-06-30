@@ -36,6 +36,7 @@ jobs:
             type=sha
             # set latest tag for default branch
             type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=tag
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
