@@ -1,0 +1,46 @@
+schemaVersion: 2.0.0
+
+metadataTest:
+  env:
+    - key: UWSGI_INI
+      value: "/etc/uwsgi/uwsgi.ini"
+    - key: UWSGI_CHEAPER
+      value: "2"
+    - key: UWSGI_PROCESSES
+      value: "16"
+    - key: NGINX_MAX_UPLOAD
+      value: "100m"
+    - key: NGINX_WORKER_PROCESSES
+      value: "1"
+    - key: NGINX_SERVER_TOKENS
+      value: "off"
+    - key: NGINX_WORKER_CONNECTIONS
+      value: "1024"
+    - key: NGINX_LISTEN_PORT
+      value: "80"
+    - key: NGINX_LISTEN_SSL_PORT
+      value: "443"
+    - key: NGINX_SSL_ENABLED
+      value: "true"
+    - key: PI_SKIP_BOOTSTRAP
+      value: "false"
+    - key: DB_VENDOR
+      value: "sqlite"
+    - key: PI_HOME
+      value: "/opt/privacyidea"
+    - key: VIRTUAL_ENV
+      value: "/opt/privacyidea"
+  workdir: "/opt/privacyidea"
+  entrypoint: ["/usr/local/bin/privacyidea_entrypoint.sh"]
+  exposedPorts: ["80", "443"]
+
+fileExistenceTests:
+- name: 'Supervisor config'
+  path: '/etc/supervisor/supervisord.conf'
+  shouldExist: true
+- name: 'UWSGI config'
+  path: '/etc/uwsgi/uwsgi.ini'
+  shouldExist: true
+- name: 'Tempalte directory'
+  path: '/opt/templates'
+  shouldExist: true
