@@ -34,6 +34,7 @@ jobs:
           tags: |
             # minimal (short sha)
             type=sha
+            type=ref,enable=true,priority=600,prefix=pr-,suffix=,event=pr
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@v2
@@ -46,5 +47,6 @@ jobs:
         with:
           context: .
           push: false
+          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
