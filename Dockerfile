@@ -1,5 +1,9 @@
 FROM python:3.8.13-bullseye
 
+ARG LABEL_BUILD_DATE
+ARG LABEL_VCS_REF
+ARG LABEL_VERSION
+
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
 COPY prebuildfs /
@@ -71,3 +75,14 @@ ENTRYPOINT ["/usr/local/bin/privacyidea_entrypoint.sh"]
 WORKDIR /opt/privacyidea
 
 VOLUME [ "/data/privacyidea" ]
+
+LABEL org.label-schema.build-date="${LABEL_BUILD_DATE}"
+LABEL org.label-schema.description = "The docker image is a self-contained Debian with privacyIDEA and NGINX installed, which will run on every distribution."
+LABEL org.label-schema.name="PrivacyIDEA Docker"
+LABEL org.label-schema.schema-version="1.0"
+LABEL org.label-schema.url="https://github.com/privacyidea/privacyidea"
+LABEL org.label-schema.usage="https://github.com/Khalibre/privacyidea-docker#readme"
+LABEL org.label-schema.vcs-ref="${LABEL_VCS_REF}"
+LABEL org.label-schema.vcs-url="https://github.com/Khalibre/privacyidea-docker"
+LABEL org.label-schema.vendor="Khalibre"
+LABEL org.label-schema.version="${LABEL_VERSION}"
