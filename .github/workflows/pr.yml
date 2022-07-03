@@ -32,8 +32,6 @@ jobs:
             khalibre/privacyidea
           # add git short SHA as Docker tag
           tags: |
-            # minimal (short sha)
-            type=sha
             type=ref,enable=true,priority=600,prefix=pr-,suffix=,event=pr
       -
         name: Set up QEMU
@@ -46,7 +44,15 @@ jobs:
         uses: docker/build-push-action@v3
         with:
           context: .
-          push: false
-          platforms: linux/amd64,linux/arm64
+          load: true
           tags: ${{ steps.docker_meta.outputs.tags }}
-          labels: ${{ steps.docker_meta.outputs.labels }}
+      -
+        name: Setup Container Structure Test
+        run: curl -LO https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64 && chmod +x container-structure-test-linux-amd64 && mkdir -p $HOME/bin && mv container-structure-test-linux-amd64 $HOME/bin/container-structure-test
+      -
+        name: Run Container Structure Test
+        run: export PATH=$PATH:$HOME/bin && container-structure-test test -i ${{ steps.docker_meta.outputs.tags }} --config structure-tests.yaml --test-report junit -o junit
+        uses: mikepenz/action-junit-report@v3
+        if: always() # always run even if the previous step fails
+        with:
+          report_paths: 'junit'
