@@ -138,9 +138,9 @@ After you create a container in an environment, the container entry point execut
   2. Configure: Prepares for running NGINX and privacyIDEA.
       1. Set Python's runtime environment.
       2. Run user-provided scripts.
-  3. Pre-startup: Runs user-provided scripts before starting Tomcat.
+  3. Pre-startup: Runs user-provided scripts before starting supervisd.
   4. NGINX and privacyIDEA startup: Launches privacyIDEA and NGINX using the supervisd script.
-  5. Post-shutdown: Runs user-provided scripts after Tomcat stops.
+  5. Post-shutdown: Runs user-provided scripts after supervisd stops.
 
 ### API
 
