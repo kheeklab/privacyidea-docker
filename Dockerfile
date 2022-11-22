@@ -56,7 +56,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-ARG PI_VERSION=3.7.3
+ARG PI_VERSION=3.7.4
 
 RUN pip3 install wheel && \
     pip3 install uwsgi pymysql-sa PyMySQL psycopg2-binary && \
