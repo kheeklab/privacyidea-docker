@@ -1,7 +1,7 @@
 schemaVersion: 2.0.0
 
 metadataTest:
-  env:
+  envVars:
     - key: UWSGI_INI
       value: "/etc/uwsgi/uwsgi.ini"
     - key: UWSGI_CHEAPER
@@ -9,7 +9,7 @@ metadataTest:
     - key: UWSGI_PROCESSES
       value: "16"
     - key: NGINX_MAX_UPLOAD
-      value: "100m"
+      value: "1m"
     - key: NGINX_WORKER_PROCESSES
       value: "1"
     - key: NGINX_SERVER_TOKENS
