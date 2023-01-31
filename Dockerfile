@@ -1,4 +1,4 @@
-FROM python:3.8.15-bullseye
+FROM python:3.8.16-bullseye
 
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
@@ -28,7 +28,7 @@ ENV UWSGI_PROCESSES 16
 # By default, allow unlimited file sizes, modify it to limit the file sizes
 # To have a maximum of 1 MB (Nginx's default) change the line to:
 # ENV NGINX_MAX_UPLOAD 1m
-ENV NGINX_MAX_UPLOAD 100m
+ENV NGINX_MAX_UPLOAD 1m
 
 # By default, Nginx will run a single worker process, setting it to auto
 # will create a worker for each CPU core
@@ -56,7 +56,7 @@ RUN python3 -m venv $VIRTUAL_ENV
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-ARG PI_VERSION=3.7.4
+ARG PI_VERSION=3.8
 
 RUN pip3 install wheel && \
     pip3 install uwsgi pymysql-sa PyMySQL psycopg2-binary && \
