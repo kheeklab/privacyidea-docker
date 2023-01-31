@@ -1,7 +1,7 @@
-name: report
+name: Container Strcuture Tests Report
 on:
   workflow_run:
-    workflows: [PR Build]
+    workflows: [Build PR]
     types: [completed]
 
 permissions:
@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   checks:
+    name: Checking report
     runs-on: ubuntu-latest
     steps:
       - name: Download Test Report

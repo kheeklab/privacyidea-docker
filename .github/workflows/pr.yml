@@ -1,4 +1,4 @@
-name: PR Build
+name: Build PR
 
 # Controls when the action will run.
 on:
@@ -14,16 +14,14 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   build:
+    name: Build container images
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v3
-      -
-        name: Docker meta
+      - name: Docker meta
         id: docker_meta
         uses: docker/metadata-action@v4.3.0
         with:
@@ -32,21 +30,32 @@ jobs:
             khalibre/privacyidea
           # add git short SHA as Docker tag
           tags: |
-            # minimal (short sha)
-            type=sha
             type=ref,enable=true,priority=600,prefix=pr-,suffix=,event=pr
-      -
-        name: Set up QEMU
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
-      -
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      -
-        name: Build
+      - name: Build
         uses: docker/build-push-action@v4
         with:
           context: .
           push: false
-          platforms: linux/amd64,linux/arm64
+          load: true
+          platforms: linux/amd64
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
+      - name: Seup Container Structure Tests
+        run: |
+          curl -LO https://storage.googleapis.com/container-structure-test/latest/container-structure-test-linux-amd64
+          chmod +x container-structure-test-linux-amd64
+          mkdir -p $HOME/.local/bin
+          mv container-structure-test-linux-amd64 $HOME/.local/bin/container-structure-test
+      - name: Run Container Structure Tests
+        run: container-structure-test test --image ${{ env.DOCKER_METADATA_OUTPUT_TAGS }} --config structure-tests.yaml -o junit --test-report structure-tests-report.xml
+      - name: Upload Test Report
+        uses: actions/upload-artifact@v3
+        if: always() # always run even if the previous step fails
+        with:
+          name: junit-test-results
+          path: 'structure-tests-report.xml'
+          retention-days: 1

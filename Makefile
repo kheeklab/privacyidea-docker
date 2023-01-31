@@ -28,3 +28,6 @@ cleanup:
 	docker stop privacyidea-dev || true
 	docker rm privacyidea-dev || true
 	sudo rm -rf $(LOCAL_DATA_VOLUME)
+
+test:
+	container-structure-test test --image khalibre/privacyidea:dev --config structure-tests.yaml
