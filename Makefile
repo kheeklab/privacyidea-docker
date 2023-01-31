@@ -4,13 +4,13 @@ info:
 
 LOCAL_DATA_VOLUME=/tmp/privacyidea-data
 
-build:
+build: ## Build image
 	docker build -t khalibre/privacyidea:dev .
 
-push:
-	docker push michimau/privacyidea
+push: ## Push image
+	docker push khalibre/privacyidea:dev
 
-run: cleanup create_volume secretkey pipepper
+run: cleanup create_volume secretkey pipepper ## Run test
 	docker run -p 80:80 -p 443:443 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper khalibre/privacyidea:dev
 
 create_volume:
