@@ -14,11 +14,14 @@ if PI_PEPPER is None:
 # The realm, where users are allowed to login as administrators
 SUPERUSER_REALM = os.environ.get('SUPERUSER_REALM', ['administrator'])
 SQLALCHEMY_DATABASE_URI = "$SQLALCHEMY_DATABASE_URI"
-PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/encfile")
+PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/keys/encfile")
 PI_HSM = os.environ.get("PI_HSM", "default")
+PI_AUDIT_NO_SIGN = os.environ.get("PI_AUDIT_NO_SIGN", "False").lower() == "true"
 PI_AUDIT_MODULE = os.environ.get("PI_AUDIT_MODULE", "privacyidea.lib.auditmodules.sqlaudit")
-PI_AUDIT_KEY_PRIVATE = os.environ.get("PI_AUDIT_KEY_PRIVATE", "/etc/privacyidea/data/keys/private.pem")
-PI_AUDIT_KEY_PUBLIC = os.environ.get("PI_AUDIT_KEY_PUBLIC", "/etc/privacyidea/data/keys/public.pem")
+# PI_AUDIT_KEY_PRIVATE will be used only when PI_AUDIT_NO_SIGN is True
+PI_AUDIT_KEY_PRIVATE = os.environ.get("PI_AUDIT_KEY_PRIVATE_PATH", "/data/privacyidea/keys/private.pem")
+# PI_AUDIT_KEY_PUBLIC will be used only when PI_AUDIT_NO_SIGN is True
+PI_AUDIT_KEY_PUBLIC = os.environ.get("PI_AUDIT_KEY_PUBLIC_PATH", "/data/privacyidea/keys/public.pem")
 PI_LOGFILE = os.environ.get("PI_LOGFILE", "/var/log/privacyidea/privacyidea.log")
 PI_LOGLEVEL = logging.getLevelName(os.environ.get("PI_LOGLEVEL", "INFO"))
 PI_NODE = os.environ.get("HOSTNAME", "localnode")
