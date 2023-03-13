@@ -11,7 +11,7 @@ metadataTest:
     - key: NGINX_MAX_UPLOAD
       value: "1m"
     - key: NGINX_WORKER_PROCESSES
-      value: "1"
+      value: "auto"
     - key: NGINX_SERVER_TOKENS
       value: "off"
     - key: NGINX_WORKER_CONNECTIONS
@@ -41,6 +41,6 @@ fileExistenceTests:
 - name: 'UWSGI config'
   path: '/etc/uwsgi/uwsgi.ini'
   shouldExist: true
-- name: 'Tempalte directory'
+- name: 'Template directory'
   path: '/opt/templates'
   shouldExist: true

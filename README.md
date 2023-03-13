@@ -42,7 +42,7 @@ The Khalibre privacyIDEA container can create a default admin user by setting th
 
 The Khalibre privacyIDEA requires a database to work. This is configured with the following environment variables:
 
-  - `DB_VENDOR`: Database vendor (support mysql, mariadb or posgresql) No defaults.
+  - `DB_VENDOR`: Database vendor (support mysql, mariadb or posgresql) Default **sqlite**.
   - `DB_USER`: Database user. No defaults.
   - `DB_PASSWORD`: Database. No defaults.
   - `DB_NAME`: Database name. No defaults.
@@ -50,12 +50,12 @@ The Khalibre privacyIDEA requires a database to work. This is configured with th
 
 ### NGINX configuration
 
-  - `NGINX_LISTEN_PORT`: Get the listen port for Nginx, default to 80
-  - `NGINX_LISTEN_SSL_PORT`: Get the secured listen port for Nginx, default to 443
-  - `NGINX_MAX_UPLOAD`: Get the maximum upload file size for Nginx, default to 100Mb
-  - `NGINX_SERVER_TOKENS`: Hide Nginx server version on error pages and in the “Server HTTP” response header field
-  - `NGINX_SSL_CERT`: Path to SSL certificate, default to **/etc/nginx/certs/pi-server-cert.pem**
-  - `NGINX_SSL_ENABLED`: Set to true to enable SSL, default **false**
+  - `NGINX_LISTEN_PORT`: Get the listen port for Nginx, default to **80**
+  - `NGINX_LISTEN_SSL_PORT`: Get the secured listen port for Nginx, default to **443**
+  - `NGINX_MAX_UPLOAD`: Get the maximum upload file size for Nginx, default to **100Mb**
+  - `NGINX_SERVER_TOKENS`: Hide Nginx server version on error pages and in the “Server HTTP” response header field. Default **off**
+  - `NGINX_SSL_CERT`: Path to SSL certificate. Default to **/etc/nginx/certs/pi-server-cert.pem**
+  - `NGINX_SSL_ENABLED`: Set to true to enable SSL, Default **false**
   - `NGINX_SSL_KEY`: Path to SSL key, default **/etc/nginx/certs/pi-server-key.pem**
   - `NGINX_WORKER_CONNECTIONS`: Set the max number of connections per worker for Nginx, if requested.
   - `NGINX_WORKER_PROCESSES`: Get the number of workers for Nginx, default to 1
@@ -64,8 +64,9 @@ The Khalibre privacyIDEA requires a database to work. This is configured with th
 
   - `CACHE_TYPE`: privacyIDEA cache type. Default simple.
   - `PI_PEPPER`: This is used to encrypt the admin passwords. No defaults.
-  - `PI_AUDIT_KEY_PRIVATE`: This is used to sign the audit log
-  - `PI_AUDIT_KEY_PUBLIC`: This is used to sign the audit log
+  - `PI_AUDIT_NO_SIGN`: If you by any reason want to avoid signing audit entries set it **true**.
+  - `PI_AUDIT_KEY_PRIVATE_PATH`: This is used to sign the audit log
+  - `PI_AUDIT_KEY_PUBLIC_PATH`: This is used to sign the audit log
   - `PI_ENCFILE`: This is used to encrypt the token data and token passwords. No defaults.
   - `PI_HSM`: privacyIDEA HSM. Default **default**
   - `PI_LOGFILE`: privacyIDEA log file location. Default **/var/log/privacyidea/privacyidea.log**

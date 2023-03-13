@@ -1,18 +1,19 @@
 #!/bin/bash
 
-function execute_scripts {
-	if [ -e "${1}" ] && [[ $(find "${1}" -maxdepth 1 -name "*.sh" -printf "%f\n") ]]
-	then
-		echo "[PrivacyIDEA] Executing scripts in ${1}:"
+execute_scripts() {
+  local script_dir="$1"
+  local script_names
 
-		for SCRIPT_NAME in $(find "${1}" -maxdepth 1 -name "*.sh" -printf "%f\n" | sort)
-		do
-			echo ""
-			echo "[PrivacyIDEA] Executing ${SCRIPT_NAME}."
+  if [[ -d "$script_dir" ]] && script_names=("$script_dir"/*.sh); (( ${#script_names[@]} )); then
+    echo "[PrivacyIDEA] Executing scripts in $script_dir:"
 
-			source "${1}/${SCRIPT_NAME}"
-		done
+    for script_path in "${script_names[@]}"; do
+      local script_name=$(basename "$script_path")
+      echo ""
+      echo "[PrivacyIDEA] Executing $script_name."
+      source "$script_path" || { echo "[PrivacyIDEA] Error: Failed to execute $script_name."; return 1; }
+    done
 
-		echo ""
-	fi
+    echo ""
+  fi
 }
