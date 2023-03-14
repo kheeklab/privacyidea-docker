@@ -9,7 +9,8 @@ RUN install_packages ca-certificates git supervisor gettext-base nginx
 
 # Create directories and user for PrivacyIdea and set ownership
 RUN mkdir -p /data/privacyidea/keys \
-    /var/log/privacyidea && \
+    /var/log/privacyidea \
+    /etc/privacyidea && \
     adduser --gecos "PrivacyIdea User" \
     --disabled-password \
     --home /home/privacyidea \
@@ -17,7 +18,7 @@ RUN mkdir -p /data/privacyidea/keys \
     privacyidea && \
     addgroup privacyidea privacyidea && \
     usermod -g 1001 privacyidea && \
-    chown -R privacyidea:privacyidea /var/log/privacyidea /data/privacyidea
+    chown -R privacyidea:privacyidea /var/log/privacyidea /data/privacyidea /etc/privacyidea
 
 # Set environment variables for uWSGI and Nginx
 ENV UWSGI_INI=/etc/uwsgi/uwsgi.ini \
