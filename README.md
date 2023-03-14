@@ -73,6 +73,7 @@ The Khalibre privacyIDEA requires a database to work. This is configured with th
   - `PI_LOGLEVEL`: privacyIDEA log level. Default **INFO**
   - `SECRET_KEY`: This is used to encrypt the auth_token. No defaults.
   - `SUPERUSER_REALM`: The realm, where users are allowed to login as administrators. Default **administrator**
+  - `PI_SKIP_BOOTSTRAP`: Set this to **true** to prevent the container to run setup again. Default **false**
 
 ## Providing Files to the Container
 
