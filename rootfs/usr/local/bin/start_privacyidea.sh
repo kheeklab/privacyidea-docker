@@ -61,14 +61,14 @@ function generate_pi_config {
     fi
 
     # Check if the configuration file already exists
-    if [ ! -f /data/privacyidea/pi.cfg ]; then
+    if [ ! -f /etc/privacyidea/pi.cfg ]; then
 
         # Check if SQLALCHEMY_DATABASE_URI is defined
         if [ -z "$SQLALCHEMY_DATABASE_URI" ]; then
             echo "SQLALCHEMY_DATABASE_URI is undefined"
         else
             # Use the pi-config.template file as a template and substitute the necessary variables
-            envsubst < /opt/templates/pi-config.template > /data/privacyidea/pi.cfg
+            envsubst < /opt/templates/pi-config.template > /etc/privacyidea/pi.cfg
         fi
     fi
 
