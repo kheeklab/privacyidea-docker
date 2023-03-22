@@ -5,7 +5,7 @@ LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 COPY prebuildfs /
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates git supervisor gettext-base nginx
+RUN install_packages ca-certificates git supervisor gettext-base nginx tree
 
 # Create directories and user for PrivacyIdea and set ownership
 RUN mkdir -p /data/privacyidea/keys \
