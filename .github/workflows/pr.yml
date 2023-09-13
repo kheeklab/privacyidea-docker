@@ -32,7 +32,7 @@ jobs:
           tags: |
             type=ref,enable=true,priority=600,prefix=pr-,suffix=,event=pr
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Build
