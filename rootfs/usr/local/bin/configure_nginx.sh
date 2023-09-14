@@ -67,10 +67,13 @@ function main {
   if [ "$NGINX_SSL_ENABLED" = true ]; then
     if [ -z "$NGINX_SSL_CERT" ] && [ -z "$NGINX_SSL_KEY" ];
     then
-      echo "SSL enabled but NGINX_SSL_CERT and NGINX_SSL_KEY are not defined, using generated certificate"
+      echo "[WARNING] SSL enabled but NGINX_SSL_CERT and NGINX_SSL_KEY are not defined, using seflf-signed certificate"
+      echo ""
       generate_cert
       export NGINX_SSL_CERT=/etc/nginx/certs/pi-server-cert.pem
       export NGINX_SSL_KEY=/etc/nginx/certs/pi-server-key.pem
+      echo "[INFO] A seflf-signed certificate has been generated at $NGINX_SSL_CERT and $NGINX_SSL_KEY"
+      echo ""
     fi
     envsubst < /opt/templates/nginx-pi-ssl.conf.template > /etc/nginx/conf.d/pi-ssl.conf
   fi

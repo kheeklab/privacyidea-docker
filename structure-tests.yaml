@@ -31,7 +31,7 @@ metadataTest:
     - key: VIRTUAL_ENV
       value: "/opt/privacyidea"
   workdir: "/opt/privacyidea"
-  entrypoint: ["/usr/local/bin/privacyidea_entrypoint.sh"]
+  entrypoint: ["/usr/bin/tini", "--", "/usr/local/bin/privacyidea_entrypoint.sh"]
   exposedPorts: ["80", "443"]
 
 fileExistenceTests:
