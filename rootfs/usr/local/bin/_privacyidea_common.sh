@@ -11,7 +11,8 @@ execute_scripts() {
       local script_name=$(basename "$script_path")
       echo ""
       echo "[PrivacyIDEA] Executing $script_name."
-      source "$script_path" || { echo "[PrivacyIDEA] Error: Failed to execute $script_name."; return 1; }
+      echo ""
+      source "$script_path" || { echo "[ERROR]: Failed to execute $script_name."; return 1; }
     done
 
     echo ""

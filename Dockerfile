@@ -1,11 +1,11 @@
-FROM python:3.8.16-bullseye
+FROM python:3.8.18-bookworm
 
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 
 COPY prebuildfs /
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates git supervisor gettext-base nginx tree
+RUN install_packages ca-certificates gettext-base nginx tini tree
 
 # Create directories and user for PrivacyIdea and set ownership
 RUN mkdir -p /data/privacyidea/keys \
@@ -16,7 +16,6 @@ RUN mkdir -p /data/privacyidea/keys \
     --home /home/privacyidea \
     --uid 1001 \
     privacyidea && \
-    addgroup privacyidea privacyidea && \
     usermod -g 1001 privacyidea && \
     chown -R privacyidea:privacyidea /var/log/privacyidea /data/privacyidea /etc/privacyidea
 
@@ -44,10 +43,7 @@ ARG PI_VERSION=3.8.1
 
 # Create a virtual environment for PrivacyIdea and install its dependencies
 RUN python3 -m venv $VIRTUAL_ENV && \
-    pip3 install wheel && \
-    pip3 install uwsgi pymysql-sa PyMySQL psycopg2-binary && \
-    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt && \
-    pip3 install git+https://github.com/privacyidea/privacyidea.git@v${PI_VERSION}
+    pip3 install -r /opt/requirements.txt
 
 # Copy the rootfs directory to the root of the container filesystem
 COPY rootfs /
@@ -57,7 +53,7 @@ EXPOSE 80/tcp
 EXPOSE 443/tcp
 
 # Set the entrypoint to the privacyidea_entrypoint.sh script
-ENTRYPOINT ["/usr/local/bin/privacyidea_entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/privacyidea_entrypoint.sh"]
 
 WORKDIR /opt/privacyidea
 
