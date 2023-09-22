@@ -22,51 +22,56 @@ function main {
 function generate_pi_config {
 
     # Check the selected database vendor
-    if [ "${DB_VENDOR}" = "mariadb" ] || [ "${DB_VENDOR}" = "mysql" ]; then
-        echo "[INFO] Using $DB_VENDOR ..."
+    case $DB_VENDOR in
+        "mariadb" | "mysql")
+            echo "[INFO] Using $DB_VENDOR ..."
 
-        # Ensure that the necessary variables are defined
-        [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
-        [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
-        [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
-        [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
+            # Ensure that the necessary variables are defined
+            [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
+            [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
+            [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
+            [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
 
-        # Set the default port if it is not defined
-        if [ -z "$DB_PORT" ]; then
-            echo DB_PORT is not defined using default port
-            export DB_PORT=3306
-        fi
+            # Set the default port if it is not defined
+            if [ -z "$DB_PORT" ]; then
+                echo DB_PORT is not defined using default port
+                export DB_PORT=3306
+            fi
 
-        # Define the SQLAlchemy database URI using the necessary variables
-        export SQLALCHEMY_DATABASE_URI=pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+            # Define the SQLAlchemy database URI using the necessary variables
+            export SQLALCHEMY_DATABASE_URI=${DB_VENDOR}+pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+            echo ${SQLALCHEMY_DATABASE_URI}
+            ;;
 
-    elif [ "${DB_VENDOR}" = "postgresql" ]; then
-        echo "Using $DB_VENDOR..."
+        "postgresql")
+            echo "Using $DB_VENDOR..."
 
-        # Ensure that the necessary variables are defined
-        [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
-        [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
-        [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
-        [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
+            # Ensure that the necessary variables are defined
+            [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
+            [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
+            [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
+            [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
 
-        # Set the default port if it is not defined
-        if [ -z "$DB_PORT" ]; then
-            echo "[INFO] DB_PORT is not defined using default port 5432"
+            # Set the default port if it is not defined
+            if [ -z "$DB_PORT" ]; then
+                echo "[INFO] DB_PORT is not defined using default port 5432"
+                echo ""
+                export DB_PORT=5432
+            fi
+
+            # Define the SQLAlchemy database URI using the necessary variables
+            export SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+            ;;
+
+        *)
             echo ""
-            export DB_PORT=5432
-        fi
+            echo "[WARNING] DB_VENDOR environment variable is not set. Using default SQLite..."
+            echo ""
 
-        # Define the SQLAlchemy database URI using the necessary variables
-        export SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
-
-    else
-        echo ""
-        echo "[WARNING] DB_VENDOR environment variable is not set. Using default SQLite..."
-        echo ""
-
-        # Define the SQLAlchemy database URI for SQLite
-        export SQLALCHEMY_DATABASE_URI=sqlite://///data/privacyidea/privacyidea.db
-    fi
+            # Define the SQLAlchemy database URI for SQLite
+            export SQLALCHEMY_DATABASE_URI=sqlite://///data/privacyidea/privacyidea.db
+            ;;
+    esac
 
     # Check if the configuration file already exists
     if [ ! -f /etc/privacyidea/pi.cfg ]; then
