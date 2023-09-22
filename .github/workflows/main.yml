@@ -35,8 +35,8 @@ jobs:
             type=sha
             # set latest tag for default branch
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
+            type=pep440,pattern=v{{version}}
+            type=pep440,pattern=v{{major}}.{{minor}}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
