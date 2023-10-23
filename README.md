@@ -4,7 +4,10 @@
 
 This is a build environment to build a docker image for privacyIDEA based on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
-**Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from Khalibre.
+:star: If you like this project and find it useful, please consider starring it on GitHub to help me reach more people and get feedback.
+
+> [!NOTE]
+> **Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from Khalibre.
 
 ## The image
 The docker image is a self-contained Debian with privacyIDEA and NGINX installed, which will run on every distribution.
@@ -156,3 +159,13 @@ The key folders above have subfolders that are designated for specific actions. 
 ## Contributing
 
 We'd love for you to contribute to this container. You can request new features by creating an issue, or submitting a pull request with your contribution.
+
+## Star History
+
+<a href="https://star-history.com/#Khalibre/privacyidea-docker&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Khalibre/privacyidea-docker&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Khalibre/privacyidea-docker&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Khalibre/privacyidea-docker&type=Date" />
+  </picture>
+</a>
