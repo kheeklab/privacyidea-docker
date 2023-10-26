@@ -28,9 +28,10 @@ Run it with
 make run
 ```
 
-Login to http://localhost with "admin"/"privacyidea".
+Login to http://localhost with **admin/privacyidea**
 
-> You must not use this in a production environment, since it contains fixed credentials and encryption keys!
+> [!WARNING]
+> :unlock: You must not use this in a production environment, since it contains fixed credentials and encryption keys!
 
 ## Configuration
 
