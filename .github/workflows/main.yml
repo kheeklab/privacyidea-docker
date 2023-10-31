@@ -2,10 +2,10 @@ name: Build Release
 
 # Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
+  # Triggers the workflow on push but only for the main branch
   push:
-    tags:
-      - v*.*
+    branches:
+      - 'main'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -31,11 +31,8 @@ jobs:
             khalibre/privacyidea
           # add git short SHA as Docker tag
           tags: |
-            # minimal (short sha)
-            type=sha
             # set latest tag for default branch
             type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=tag
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       -
