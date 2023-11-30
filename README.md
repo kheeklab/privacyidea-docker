@@ -4,7 +4,8 @@
 
 This is a build environment to build a docker image for privacyIDEA based on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
-:star: If you like this project and find it useful, please consider starring it on GitHub to help me reach more people and get feedback.
+> [!TIP]
+> If you like this project and find it useful, please consider starring :star: it on GitHub to help it reach more people and get more feedback.
 
 > [!NOTE]
 > **Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from Khalibre.
@@ -30,7 +31,7 @@ make run
 
 Login to http://localhost with **admin/privacyidea**
 
-> [!WARNING]
+> [!CAUTION]
 > :unlock: You must not use this in a production environment, since it contains fixed credentials and encryption keys!
 
 ## Configuration
