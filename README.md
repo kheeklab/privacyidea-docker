@@ -32,7 +32,13 @@ make run
 Login to http://localhost with **admin/privacyidea**
 
 > [!CAUTION]
-> :unlock: You must not use this in a production environment, since it contains fixed credentials and encryption keys!
+> The default configuration provide in this reposotory contains fixed credentials and encryption keys for testing and demo purposes. It should not be used in a production environment.Please refer to the [configuration](#configuration) section below for more details.
+> 
+> **Additional notes:**
+>
+> - Production environments should use environment variables or other secure methods to store sensitive information.
+> - Fixed credentials and encryption keys can be easily compromised if exposed, leading to security breaches.
+> - It is important to take all necessary precautions to protect sensitive data in production environments.
 
 ## Configuration
 
