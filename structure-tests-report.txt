@@ -1,1 +1,0 @@
-{"Pass":4,"Fail":0,"Total":4,"Duration":0,"Results":[{"Name":"File Existence Test: Supervisor config","Pass":true,"Duration":0},{"Name":"File Existence Test: UWSGI config","Pass":true,"Duration":0},{"Name":"File Existence Test: Template directory","Pass":true,"Duration":0},{"Name":"Metadata Test","Pass":true,"Duration":0}]}
