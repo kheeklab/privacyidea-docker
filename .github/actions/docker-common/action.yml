@@ -54,7 +54,7 @@ runs:
         context: .
         push: false
         load: true
-        platforms: ${{ inputs.platforms }}
+        platforms: linux/amd64
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
     - name: Container Structure Tests
