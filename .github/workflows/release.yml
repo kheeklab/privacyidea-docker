@@ -2,6 +2,7 @@ name: Build Release
 on:
   push:
     branches:
+      - 'main'
       - '3.*'
     tags:
       - 'v3.*'
