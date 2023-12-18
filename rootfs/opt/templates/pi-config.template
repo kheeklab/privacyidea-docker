@@ -2,6 +2,9 @@ import os
 import logging
 import sys
 
+# Define list delimiters (single and double quotes)
+delimiters = ['"', "'"]
+
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if SECRET_KEY is None:
     print("SECRET_KEY not set! Refusing to start")
@@ -11,13 +14,24 @@ PI_PEPPER = os.environ.get('PI_PEPPER')
 if PI_PEPPER is None:
     print("PI_PEPPER not set! Refusing to start")
     sys.exit(1)
+
 # The realm, where users are allowed to login as administrators
 SUPERUSER_REALM = os.environ.get('SUPERUSER_REALM', ['administrator'])
+# Strip surrounding quotes if present
+for delimiter in delimiters:
+    if SUPERUSER_REALM.startswith(delimiter) and SUPERUSER_REALM.endswith(delimiter):
+        SUPERUSER_REALM = SUPERUSER_REALM[1:-1]
+# Check if the variable is a string and convert it to a list if necessary
+if isinstance(SUPERUSER_REALM, str):
+    SUPERUSER_REALM = SUPERUSER_REALM.split(",")
+# Print the SUPERUSER_REALM variable
+# print(f"Super realm(s): {SUPERUSER_REALM}")
+
 SQLALCHEMY_DATABASE_URI = "$SQLALCHEMY_DATABASE_URI"
 PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/keys/encfile")
 PI_HSM = os.environ.get("PI_HSM", "default")
 PI_AUDIT_NO_SIGN = os.environ.get("PI_AUDIT_NO_SIGN", "False").lower() == "true"
-PI_AUDIT_MODULE = os.environ.get("PI_AUDIT_MODULE", "privacyidea.lib.auditmodules.sqlaudit")
+PI_AUDIT_MODULE = os.environ.get("", "privacyidea.lib.auditmodules.sqlaudit")
 # PI_AUDIT_KEY_PRIVATE will be used only when PI_AUDIT_NO_SIGN is True
 PI_AUDIT_KEY_PRIVATE = os.environ.get("PI_AUDIT_KEY_PRIVATE_PATH", "/data/privacyidea/keys/private.pem")
 # PI_AUDIT_KEY_PUBLIC will be used only when PI_AUDIT_NO_SIGN is True
