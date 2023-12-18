@@ -5,7 +5,7 @@ LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 COPY prebuildfs /
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates gettext-base nginx tini tree
+RUN install_packages ca-certificates gettext-base nginx tini tree jq
 
 # Create directories and user for PrivacyIdea and set ownership
 RUN mkdir -p /data/privacyidea/keys \
@@ -39,7 +39,7 @@ ENV UWSGI_INI=/etc/uwsgi/uwsgi.ini \
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Set the PrivacyIdea version to install
-ARG PI_VERSION=3.8.1
+ARG PI_VERSION=3.9.1
 
 # Create a virtual environment for PrivacyIdea and install its dependencies
 RUN python3 -m venv $VIRTUAL_ENV && \

@@ -21,46 +21,42 @@ function main {
 
 function generate_pi_config {
 
+    # Common logic for checking and setting default values
+    check_and_set_defaults() {
+        [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
+        [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
+        [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
+        [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
+
+        # Set the default port if it is not defined
+        if [ -z "$DB_PORT" ]; then
+            echo "[INFO] DB_PORT is not defined using default port"
+            export DB_PORT=3306  # Default port for mariadb/mysql
+            [ "$DB_VENDOR" = "postgresql" ] && export DB_PORT=5432  # Default port for postgresql
+        fi
+
+        # URL encode the password
+        encoded_password=$(printf "%s" "$DB_PASSWORD" | jq -s -R -r @uri)
+    }
+
     # Check the selected database vendor
     case $DB_VENDOR in
         "mariadb" | "mysql")
             echo "[INFO] Using $DB_VENDOR ..."
 
-            # Ensure that the necessary variables are defined
-            [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
-            [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
-            [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
-            [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
-
-            # Set the default port if it is not defined
-            if [ -z "$DB_PORT" ]; then
-                echo DB_PORT is not defined using default port
-                export DB_PORT=3306
-            fi
+            check_and_set_defaults
 
             # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=${DB_VENDOR}+pymysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
-            echo ${SQLALCHEMY_DATABASE_URI}
+            export SQLALCHEMY_DATABASE_URI=${DB_VENDOR}+pymysql://${DB_USER}:${encoded_password}@${DB_HOST}:${DB_PORT}/${DB_NAME}
             ;;
 
         "postgresql")
             echo "Using $DB_VENDOR..."
 
-            # Ensure that the necessary variables are defined
-            [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
-            [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
-            [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
-            [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
-
-            # Set the default port if it is not defined
-            if [ -z "$DB_PORT" ]; then
-                echo "[INFO] DB_PORT is not defined using default port 5432"
-                echo ""
-                export DB_PORT=5432
-            fi
+            check_and_set_defaults
 
             # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+            export SQLALCHEMY_DATABASE_URI==${DB_VENDOR}+psycopg2://${DB_USER}:${encoded_password}@${DB_HOST}:${DB_PORT}/${DB_NAME}
             ;;
 
         *)
