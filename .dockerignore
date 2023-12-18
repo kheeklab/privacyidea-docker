@@ -1,10 +1,9 @@
 .github/
 .gitignore
-docker-compose.yml
 LICENSE
 Makefile
 pipepper
 README.md
 secretkey
 CODE_OF_CONDUCT.md
-docker-compose-posgresql.yml
+example/
