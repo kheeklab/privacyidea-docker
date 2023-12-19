@@ -2,9 +2,6 @@ import os
 import logging
 import sys
 
-# Define list delimiters (single and double quotes)
-delimiters = ['"', "'"]
-
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if SECRET_KEY is None:
     print("SECRET_KEY not set! Refusing to start")
@@ -16,16 +13,7 @@ if PI_PEPPER is None:
     sys.exit(1)
 
 # The realm, where users are allowed to login as administrators
-SUPERUSER_REALM = os.environ.get('SUPERUSER_REALM', ['administrator'])
-# Strip surrounding quotes if present
-for delimiter in delimiters:
-    if SUPERUSER_REALM.startswith(delimiter) and SUPERUSER_REALM.endswith(delimiter):
-        SUPERUSER_REALM = SUPERUSER_REALM[1:-1]
-# Check if the variable is a string and convert it to a list if necessary
-if isinstance(SUPERUSER_REALM, str):
-    SUPERUSER_REALM = SUPERUSER_REALM.split(",")
-# Print the SUPERUSER_REALM variable
-# print(f"Super realm(s): {SUPERUSER_REALM}")
+SUPERUSER_REALM = os.environ.get('SUPERUSER_REALM','administrator').split(',')
 
 SQLALCHEMY_DATABASE_URI = "$SQLALCHEMY_DATABASE_URI"
 PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/keys/encfile")
