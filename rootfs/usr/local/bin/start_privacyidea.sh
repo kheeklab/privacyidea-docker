@@ -56,7 +56,7 @@ function generate_pi_config {
             check_and_set_defaults
 
             # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI==${DB_VENDOR}+psycopg2://${DB_USER}:${encoded_password}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+            export SQLALCHEMY_DATABASE_URI=${DB_VENDOR}+psycopg2://${DB_USER}:${encoded_password}@${DB_HOST}:${DB_PORT}/${DB_NAME}
             ;;
 
         *)
