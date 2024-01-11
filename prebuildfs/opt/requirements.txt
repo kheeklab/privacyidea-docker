@@ -1,4 +1,4 @@
-privacyIDEA==3.9.1
+privacyIDEA==3.9.2
 psycopg2==2.9.9
 supervisor==4.2.5
 uWSGI==2.0.23
