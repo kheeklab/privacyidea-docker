@@ -5,7 +5,8 @@ LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 COPY prebuildfs /
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates gettext-base nginx tini tree jq
+RUN install_packages ca-certificates gettext-base nginx tini tree jq && \
+    apt-get clean
 
 # Create directories and user for PrivacyIdea and set ownership
 RUN mkdir -p /data/privacyidea/keys \
@@ -43,7 +44,10 @@ ARG PI_VERSION=3.9.1
 
 # Create a virtual environment for PrivacyIdea and install its dependencies
 RUN python3 -m venv $VIRTUAL_ENV && \
-    pip3 install -r /opt/requirements.txt
+    pip3 install --upgrade pip && \
+    pip3 install wheel && \
+    pip3 install -r /opt/requirements.txt && \
+    rm -rf /root/.cache
 
 # Copy the rootfs directory to the root of the container filesystem
 COPY rootfs /
