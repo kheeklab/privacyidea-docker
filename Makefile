@@ -13,14 +13,14 @@ push: ## Push image
 	docker push khalibre/privacyidea:dev
 
 run: cleanup create_volume secretkey pipepper ## Run test
-	docker run -p 80:80 -p 443:443 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper khalibre/privacyidea:dev
+	docker run -p 8080:8080 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper khalibre/privacyidea:dev
 
 create_volume:
 	mkdir $(LOCAL_DATA_VOLUME)
 
 secretkey:
 	@echo Creating secretkey
-	@echo SECRET_KEY=$(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) > secretkey
+	@echo PI_SECRET_KEY=$(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) > secretkey
 
 pipepper:
 	@echo Creating pipepper

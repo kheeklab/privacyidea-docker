@@ -26,6 +26,16 @@ inputs:
     default: ''
     required: false
     description: GitHub Container Registry token
+  python_base_image:
+    type: string
+    default: 3.8.18-slim-bookworm
+    required: false
+    description: Base image for python
+  is_default_version:
+    type: boolean
+    default: false
+    required: false
+    description: Is this the default versions
 runs:
   using: "composite"
   steps:
@@ -52,11 +62,13 @@ runs:
           khalibre/privacyidea
           ghcr.io/Khalibre/privacyidea
         tags: |
+          type=raw,value={{branch}}-python-${{ inputs.python_version }},enable=${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+          type=raw,value={{branch}},enable=${{ github.event_name == 'push' && inputs.is_default_version || github.event_name == 'workflow_dispatch' }}
+          type=raw,value={{tag}}-python-${{ inputs.python_version }},enable=${{ github.event_name == 'push' }}
+          type=raw,value={{tag}},enable=${{ github.event_name == 'push' && inputs.is_default_version }}
+          type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') && inputs.is_default_version }}
           type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
-          type=raw,value=latest,enable={{is_default_branch}}
           type=sha,enable=${{ github.event_name == 'push' }}
-          type=raw,value={{tag}},enable=${{ github.event_name == 'push' }}
-          type=raw,value={{branch}},enable=${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
     - name: Set up Docker Buildx
@@ -70,6 +82,7 @@ runs:
         platforms: linux/amd64
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
+        build-args: BASE_IMAGE_TAG=${{ inputs.python_base_image }}
     - name: Container Structure Tests
       shell: bash
       run: |
@@ -88,3 +101,4 @@ runs:
         platforms: ${{ inputs.platforms }}
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
+        build-args: BASE_IMAGE_TAG=${{ inputs.python_base_image }}

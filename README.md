@@ -9,7 +9,7 @@ This is a build environment to build a docker image for privacyIDEA based on [of
 
 ## The image
 
-The docker image is a self-contained Debian with privacyIDEA and NGINX installed, which will run on every distribution.
+The docker image is a self-contained Debian with privacyIDEA installed, which will run on every distribution.
 
 > [!NOTE]
 > **Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from Khalibre.
@@ -29,7 +29,7 @@ The image tags are following privacyIDEA version e.g. `3.9.1` and `latest`. The 
 
 To build the image
 
-```bash
+```console
 make build
 ```
 
@@ -37,7 +37,8 @@ make build
 
 Run it with
 
-```bash
+```console
+
 make run
 ```
 
@@ -61,52 +62,54 @@ The Khalibre privacyIDEA container can create a default admin user by setting th
 - `PI_ADMIN_USER`: Administrator default user. Default: **admin**.
 - `PI_ADMIN_PASSWORD`:  Administrator default password. Default: **privacyidea**
 
-### Connecting to database
+## Environment variables
 
-The Khalibre privacyIDEA requires a database to work. This is configured with the following environment variables:
+### PrivacyIDEA Environment Variables
 
-- `DB_VENDOR`: Database vendor (support mysql, mariadb or posgresql) Default **sqlite**.
-- `DB_USER`: Database user. No defaults.
-- `DB_PASSWORD`: Database. No defaults.
-- `DB_NAME`: Database name. No defaults.
-- `DB_HOST`: Database host. No defaults.
-
-### NGINX configuration
-
-- `NGINX_LISTEN_PORT`: Get the listen port for Nginx, default to **80**
-- `NGINX_LISTEN_SSL_PORT`: Get the secured listen port for Nginx, default to **443**
-- `NGINX_MAX_UPLOAD`: Get the maximum upload file size for Nginx, default to **100Mb**
-- `NGINX_SERVER_TOKENS`: Hide Nginx server version on error pages and in the “Server HTTP” response header field. Default **off**
-- `NGINX_SSL_CERT`: Path to SSL certificate. Default to **/etc/nginx/certs/pi-server-cert.pem**
-- `NGINX_SSL_ENABLED`: Set to true to enable SSL, Default **false**
-- `NGINX_SSL_KEY`: Path to SSL key, default **/etc/nginx/certs/pi-server-key.pem**
-- `NGINX_WORKER_CONNECTIONS`: Set the max number of connections per worker for Nginx, if requested.
-- `NGINX_WORKER_PROCESSES`: Get the number of workers for Nginx, default to 1
-
-### privacyIDEA configuration
-
-- `CACHE_TYPE`: privacyIDEA cache type. Default simple.
-- `PI_PEPPER`: This is used to encrypt the admin passwords. No defaults.
-- `PI_AUDIT_NO_SIGN`: If you by any reason want to avoid signing audit entries set it **true**.
-- `PI_AUDIT_KEY_PRIVATE_PATH`: This is used to sign the audit log
-- `PI_AUDIT_KEY_PUBLIC_PATH`: This is used to sign the audit log
-- `PI_ENCFILE`: This is used to encrypt the token data and token passwords. No defaults.
-- `PI_HSM`: privacyIDEA HSM. Default **default**
-- `PI_LOGFILE`: privacyIDEA log file location. Default **/var/log/privacyidea/privacyidea.log**
-- `PI_LOGLEVEL`: privacyIDEA log level. Default **INFO**
-- `SECRET_KEY`: This is used to encrypt the auth_token. No defaults.
-- `SUPERUSER_REALM`: The realm, where users are allowed to login as administrators in comma separated value. Default **administrator**
-- `PI_SKIP_BOOTSTRAP`: Set this to **true** to prevent the container to run setup again. Default **false**
+| Environment Variable | Description | Default |
+| :------------------- | :---------- | :------ |
+| PI_ADMIN_USER | Initial admin user for privacyIDEA login | admin |
+| PI_ADMIN_PASSWORD | Initial admin password | privacyidea |
+| PI_DB_VENDOR | Database vendor | sqlite |
+| PI_DB_USER | Database user | |
+| PI_DB_PASSWORD | Database password | |
+| PI_DB_NAME | Database name | |
+| PI_DB_HOST | Database host | |
+| PI_CACHE_TYPE | privacyIDEA cache type | simple |
+| PI_PEPPER | This is used to encrypt the admin passwords | |
+| PI_AUDIT_NO_SIGN | If you by any reason want to avoid signing audit entries set it true | false |
+| PI_AUDIT_KEY_PRIVATE_PATH | This is used to sign the audit log | |
+| PI_AUDIT_KEY_PUBLIC_PATH | This is used to sign the audit log | |
+| PI_ENCFILE | This is used to encrypt the token data and token passwords | |
+| PI_HSM | privacyIDEA HSM | default |
+| PI_LOGFILE | privacyIDEA log file location | /var/log/privacyidea/privacyidea.log |
+| PI_LOGLEVEL | privacyIDEA log level | INFO |
+| PI_SECRET_KEY | This is used to encrypt the auth_token | |
+| PI_SUPERUSER_REALM | The realm, where users are allowed to login as administrators in comma separated value | administrator |
+| PI_SKIP_BOOTSTRAP | Set this to true to prevent the container to run setup again | false |<|endofmiddle|>
 
 > [!WARNING]
 > Be careful and setting `PI_SKIP_BOOTSTRAP` to **true** after first initialization. This will prevent the container to run setup again or your data such as admin credentials, secret keys, etc will be overwritten.
+
+### gunicorn environment variables
+
+| Environment Variable | Description | Default |
+| :------------------- | :---------- | :------ |
+| GUNICORN_ACCESS_LOGFILE | Gunicorn access log file location | stdout |
+| GUNICORN_ERROR_LOGFILE | Gunicorn error log file location | stderr |
+| GUNICORN_WORKER_CLASS | Gunicorn worker class | sync |
+| GUNICORN_WORKERS | Gunicorn workers | 1 |
+| GUNICORN_BIND | Gunicorn bind address if not set GUNICORN_HOST and GUNICORN_PORT will be used | None |
+| GUNICORN_HOST | Gunicorn host will be ingored if GUNICORN_BIND is set | 0.0.0.0 |
+| GUNICORN_PORT | Gunicorn port will be ingored if GUNICORN_BIND is set | 8080 |
+| GUNICORN_LOGLEVEL | Gunicorn log level | INFO |
+| GUNICORN_TIMEOUT | Gunicorn timeout | 60 |
 
 ## Providing Files to the Container
 
 The privacyIDEA container uses the files you provide to execute the following use cases:
 
 - Configure PrivacyIDEA with configuration files
-- Configure NGINX with configuration files
 - Run scripts
 
 All of the use cases can be triggered on container creation when the container finds files in specific folders within key container folders.
@@ -152,10 +155,9 @@ The container scans these folders.
 
 ## Container Lifecycle and API
 
-At a high level, the container starts supervisord with privacyIDEA deployed on it. Additionally, however, the container entry point provides an API for executing these use cases:
+At a high level, the container starts gunicorn with privacyIDEA deployed on it. Additionally, however, the container entry point provides an API for executing these use cases:
 
 - Invoking scripts
-- Configuring NGINX and privacyIDEA
 
 The container provides an API for triggering and configuring these use cases. It executes the use cases in different phases of its lifecycle.
 
@@ -163,17 +165,17 @@ The container provides an API for triggering and configuring these use cases. It
 
 After you create a container in an environment, the container entry point executes the following lifecycle phases in that environment:
 
-  1. Pre-configure: Runs user-provided scripts before configuring NGINX and privacyIDEA.
-  2. Configure: Prepares for running NGINX and privacyIDEA.
+  1. Pre-configure: Runs user-provided scripts before configuring privacyIDEA.
+  2. Configure: Prepares for running privacyIDEA.
       1. Set Python's runtime environment.
       2. Run user-provided scripts.
-  3. Pre-startup: Runs user-provided scripts before starting supervisd.
-  4. NGINX and privacyIDEA startup: Launches privacyIDEA and NGINX using the supervisd script.
-  5. Post-shutdown: Runs user-provided scripts after supervisd stops.
+  3. Pre-startup: Runs user-provided scripts before starting privacyIDEA.
+  4. PrivacyIDEA startup: Launches privacyIDEA.
+  5. Post-shutdown: Runs user-provided scripts after privacyIDEA stops.
 
 ### API
 
-The container entry point scans the following container folders for files and uses those files to configure the container, NGINX, and privacyIDEA and to act on privacyIDEA.
+The container entry point scans the following container folders for files and uses those files to configure the container and privacyIDEA and to act on privacyIDEA.
 
 - /mnt/privacyidea
 - /user/local/privacyidea/scripts

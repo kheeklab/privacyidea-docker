@@ -11,7 +11,7 @@ function main {
     echo ""
 
     # Set the mount directory for configuration files.
-    if [ -d /etc/privacyidea/mount ]
+    if [ -d /etc/privacyidea/mount ]s
     then
         PI_MOUNT_DIR=/etc/privacyidea/mount
     else
@@ -21,9 +21,6 @@ function main {
 
     # Execute any pre-configuration scripts.
     execute_scripts /usr/local/privacyidea/scripts/pre-configure
-
-    # Configure Nginx.
-    . configure_nginx.sh
 
     # Execute any pre-startup scripts.
     execute_scripts /usr/local/privacyidea/scripts/pre-startup
@@ -37,7 +34,7 @@ function main {
 
 # Define the function to start PrivacyIDEA.
 function start_privacyidea {
-    . start_privacyidea.sh
+    . configure_privacyidea.sh
 }
 
 # Call the main function.

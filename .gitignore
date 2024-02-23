@@ -1,4 +1,10 @@
+.github
+.gitignore
 *.swp
-secretkey
+example
+LICENSE
+Makefile
 pipepper
+README
+secretkey
 structure-tests-report.xml

@@ -8,8 +8,8 @@ on:
       - 'v3.*'
   workflow_dispatch:
 jobs:
-  build:
-    name: Build release container images
+  python-38-bookworm:
+    name: Python 3.8 / Bookworm
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,8 +17,90 @@ jobs:
       - name: Docker common actions
         uses: ./.github/actions/docker-common
         with:
+          docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
-          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          python_base_image: 3.8.18-slim-bookworm
+          is_default_version: true
+  python-39-bookworm:
+    name: Python 3.9 / Bookworm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
           docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          python_base_image: 3.9.18-slim-bookworm
+          is_default_version: false
+  python-310-bookworm:
+    name: Python 3.10 / Bookworm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          python_base_image: 3.10.13-slim-bookworm
+          is_default_version: false
+  python-38-bullseye:
+    name: Python 3.8 / Bullseye
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          python_base_image: 3.8.18-slim-bullseye
+          is_default_version: false
+  python-39-bullseye:
+    name: Python 3.9 / Bullseye
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          python_base_image: 3.9.18-slim-bullseye
+          is_default_version: false
+  python-310-bullseye:
+    name: Python 3.10 / Bullseye
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          python_base_image: 3.10.13-slim-bullseye
+          is_default_version: false

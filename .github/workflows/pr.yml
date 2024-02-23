@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build container images
+  python-38-bookworm:
+    name: Python 3.8 / Bookworm
     permissions:
       pull-requests: write
     runs-on: ubuntu-latest
@@ -20,3 +20,74 @@ jobs:
         with:
           platforms: linux/amd64
           push: false
+          python_base_image: 3.8.18-slim-bookworm
+  python-39-bookworm:
+    name: Python 3.9 / Bookworm
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          platforms: linux/amd64
+          push: false
+          python_base_image: 3.9.18-slim-bookworm
+  python-310-bookworm:
+    name: Python 3.10 / Bookworm
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          platforms: linux/amd64
+          push: false
+          python_base_image: 3.10.13-slim-bookworm
+  python-38-bullseye:
+    name: Python 3.8 / Bullseye
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          platforms: linux/amd64
+          push: false
+          python_base_image: 3.8.18-slim-bullseye
+  python-39-bullseye:
+    name: Python 3.9 / Bullseye
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          platforms: linux/amd64
+          push: false
+          python_base_image: 3.9.18-slim-bullseye
+  python-310-bullseye:
+    name: Python 3.10 / Bullseye
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Docker common actions
+        uses: ./.github/actions/docker-common
+        with:
+          platforms: linux/amd64
+          push: false
+          python_base_image: 3.10.13-slim-bullseye
