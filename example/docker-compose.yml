@@ -14,17 +14,17 @@ services:
   pi:
     image: 'khalibre/privacyidea:dev'
     ports:
-      - '8080:80'
+      - '8080:8080'
     environment:
-      - DB_VENDOR=mariadb
-      - DB_NAME=privacyidea
-      - DB_HOST=pi-db
-      - DB_USER=privacyidea
-      - DB_PASSWORD=privacyidea@123
-      - SECRET_KEY=suppersecretkey
+      - PI_DB_VENDOR=mariadb
+      - PI_DB_NAME=privacyidea
+      - PI_DB_HOST=pi-db
+      - PI_DB_USER=privacyidea
+      - PI_DB_PASSWORD=privacyidea@123
+      - PI_SECRET_KEY=suppersecretkey
       - PI_PEPPER=secretworduseforadminencrypt
       - PI_PAGE_TITLE=pivacyIDEA
-      - SUPERUSER_REALM="administrator,api"
+      - PI_SUPERUSER_REALM="administrator,api"
     depends_on:
       - pi-db
   wp-db:

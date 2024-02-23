@@ -2,7 +2,7 @@ import os
 import logging
 import sys
 
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = os.environ.get('PI_SECRET_KEY')
 if SECRET_KEY is None:
     print("SECRET_KEY not set! Refusing to start")
     sys.exit(1)
@@ -13,7 +13,7 @@ if PI_PEPPER is None:
     sys.exit(1)
 
 # The realm, where users are allowed to login as administrators
-SUPERUSER_REALM = os.environ.get('SUPERUSER_REALM','administrator').split(',')
+SUPERUSER_REALM = os.environ.get('PI_SUPERUSER_REALM','administrator').split(',')
 
 SQLALCHEMY_DATABASE_URI = "$SQLALCHEMY_DATABASE_URI"
 PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/keys/encfile")
@@ -24,10 +24,10 @@ PI_AUDIT_MODULE = os.environ.get("", "privacyidea.lib.auditmodules.sqlaudit")
 PI_AUDIT_KEY_PRIVATE = os.environ.get("PI_AUDIT_KEY_PRIVATE_PATH", "/data/privacyidea/keys/private.pem")
 # PI_AUDIT_KEY_PUBLIC will be used only when PI_AUDIT_NO_SIGN is True
 PI_AUDIT_KEY_PUBLIC = os.environ.get("PI_AUDIT_KEY_PUBLIC_PATH", "/data/privacyidea/keys/public.pem")
-PI_LOGFILE = os.environ.get("PI_LOGFILE", "/var/log/privacyidea/privacyidea.log")
-PI_LOGLEVEL = logging.getLevelName(os.environ.get("PI_LOGLEVEL", "INFO"))
+PI_LOGFILE = os.environ.get("PI_LOGFILE", "/dev/stdout")
+PI_LOGLEVEL = logging.getLevelName(os.environ.get("PI_LOGLEVEL", 20))
 PI_NODE = os.environ.get("HOSTNAME", "localnode")
-CACHE_TYPE = os.environ.get("CACHE_TYPE", "simple")
+CACHE_TYPE = os.environ.get("PI_CACHE_TYPE", "simple")
 PI_EXTERNAL_LINKS = os.environ.get("PI_EXTERNAL_LINKS", "True").lower() == "true"
 PI_VASCO_LIBRARY = None
 PI_ENGINE_REGISTRY_CLASS = os.environ.get("PI_ENGINE_REGISTRY_CLASS", "shared")
