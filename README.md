@@ -25,6 +25,16 @@ The image is stored in bellow registries:
 
 The image tags are following privacyIDEA version e.g. `3.9.1` and `latest`. The default tag is `latest` is not suitable for production environments as it might not test all use cases.
 
+| Tag | Description |
+| :-- | :---------- |
+| `latest` | The latest image build from main branch |
+| `3.9.2` `3.9.2-python-3.8.18-slim-bookworm`   | The image build from base image python 3.8.18-slim-bookworm |
+| `3.9.2-python-3.9.18-slim-bookworm`   | The image build from base image python 3.9.18-slim-bookworm |
+| `3.9.2-python-3.10.13-slim-bookworm`  | The image build from base image python 3.10.13-slim-bookworm |
+| `3.9.2-python-3.8.18-slim-bullseye`   | The image build from base image python 3.8.18-slim-bullseye |
+| `3.9.2-python-3.9.18-slim-bullseye`   | The latest image from base image python 3.9.18-slim-bullseye |
+| `3.9.2-python-3.10.13-slim-bullseye`  | The latest image build from base image python 3.10.13-slim-bullseye |
+
 ## Building
 
 To build the image
@@ -68,25 +78,25 @@ The Khalibre privacyIDEA container can create a default admin user by setting th
 
 | Environment Variable | Description | Default |
 | :------------------- | :---------- | :------ |
-| PI_ADMIN_USER | Initial admin user for privacyIDEA login | admin |
-| PI_ADMIN_PASSWORD | Initial admin password | privacyidea |
-| PI_DB_VENDOR | Database vendor | sqlite |
-| PI_DB_USER | Database user | |
-| PI_DB_PASSWORD | Database password | |
-| PI_DB_NAME | Database name | |
-| PI_DB_HOST | Database host | |
-| PI_CACHE_TYPE | privacyIDEA cache type | simple |
-| PI_PEPPER | This is used to encrypt the admin passwords | |
-| PI_AUDIT_NO_SIGN | If you by any reason want to avoid signing audit entries set it true | false |
-| PI_AUDIT_KEY_PRIVATE_PATH | This is used to sign the audit log | |
-| PI_AUDIT_KEY_PUBLIC_PATH | This is used to sign the audit log | |
-| PI_ENCFILE | This is used to encrypt the token data and token passwords | |
-| PI_HSM | privacyIDEA HSM | default |
-| PI_LOGFILE | privacyIDEA log file location | /var/log/privacyidea/privacyidea.log |
-| PI_LOGLEVEL | privacyIDEA log level | INFO |
-| PI_SECRET_KEY | This is used to encrypt the auth_token | |
-| PI_SUPERUSER_REALM | The realm, where users are allowed to login as administrators in comma separated value | administrator |
-| PI_SKIP_BOOTSTRAP | Set this to true to prevent the container to run setup again | false |<|endofmiddle|>
+| `PI_ADMIN_USER` | Initial admin user for privacyIDEA login | admin |
+| `PI_ADMIN_PASSWORD` | Initial admin password | privacyidea |
+| `PI_DB_VENDOR` | Database vendor | sqlite |
+| `PI_DB_USER` | Database user | |
+| `PI_DB_PASSWORD` | Database password | |
+| `PI_DB_NAME` | Database name | |
+| `PI_DB_HOST` | Database host | |
+| `PI_CACHE_TYPE` | privacyIDEA cache type | simple |
+| `PI_PEPPER` | This is used to encrypt the admin passwords | |
+| `PI_AUDIT_NO_SIGN` | If you by any reason want to avoid signing audit entries set it true | false |
+| `PI_AUDIT_KEY_PRIVATE_PATH` | This is used to sign the audit log | |
+| `PI_AUDIT_KEY_PUBLIC_PATH` | This is used to sign the audit log | |
+| `PI_ENCFILE` | This is used to encrypt the token data and token passwords | |
+| `PI_HSM` | privacyIDEA HSM | default |
+| `PI_LOGFILE` | privacyIDEA log file location | /var/log/privacyidea/privacyidea.log |
+| `PI_LOGLEVEL` | privacyIDEA log level | INFO |
+| `PI_SECRET_KEY` | This is used to encrypt the auth_token | |
+| `PI_SUPERUSER_REALM` | The realm, where users are allowed to login as administrators in comma separated value | administrator |
+| `PI_SKIP_BOOTSTRAP` | Set this to true to prevent the container to run setup again | false |
 
 > [!WARNING]
 > Be careful and setting `PI_SKIP_BOOTSTRAP` to **true** after first initialization. This will prevent the container to run setup again or your data such as admin credentials, secret keys, etc will be overwritten.
@@ -95,15 +105,15 @@ The Khalibre privacyIDEA container can create a default admin user by setting th
 
 | Environment Variable | Description | Default |
 | :------------------- | :---------- | :------ |
-| GUNICORN_ACCESS_LOGFILE | Gunicorn access log file location | stdout |
-| GUNICORN_ERROR_LOGFILE | Gunicorn error log file location | stderr |
-| GUNICORN_WORKER_CLASS | Gunicorn worker class | sync |
-| GUNICORN_WORKERS | Gunicorn workers | 1 |
-| GUNICORN_BIND | Gunicorn bind address if not set GUNICORN_HOST and GUNICORN_PORT will be used | None |
-| GUNICORN_HOST | Gunicorn host will be ingored if GUNICORN_BIND is set | 0.0.0.0 |
-| GUNICORN_PORT | Gunicorn port will be ingored if GUNICORN_BIND is set | 8080 |
-| GUNICORN_LOGLEVEL | Gunicorn log level | INFO |
-| GUNICORN_TIMEOUT | Gunicorn timeout | 60 |
+| `GUNICORN_ACCESS_LOGFILE` | Gunicorn access log file location | stdout |
+| `GUNICORN_ERROR_LOGFILE` | Gunicorn error log file location | stderr |
+| `GUNICORN_WORKER_CLASS` | Gunicorn worker class | sync |
+| `GUNICORN_WORKERS` | Gunicorn workers | 1 |
+| `GUNICORN_BIND` | Gunicorn bind address if not set `GUNICORN_HOST` and `GUNICORN_PORT` will be used | None |
+| `GUNICORN_HOST` | Gunicorn host will be ingored if `GUNICORN_BIND` is set | 0.0.0.0 |
+| `GUNICORN_PORT` | Gunicorn port will be ingored if `GUNICORN_BIND` is set | 8080 |
+| `GUNICORN_LOGLEVEL` | Gunicorn log level | INFO |
+| `GUNICORN_TIMEOUT` | Gunicorn timeout | 60 |
 
 ## Providing Files to the Container
 
