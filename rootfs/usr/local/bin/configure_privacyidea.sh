@@ -16,61 +16,61 @@ function main {
 
     generate_pi_config
     prestart_privacyidea
-    exec supervisord -c /etc/supervisor/supervisord.conf
+    exec /opt/privacyidea/bin/gunicorn -c /opt/privacyidea/gunicorn_conf.py "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
 }
 
 function generate_pi_config {
 
     # Common logic for checking and setting default values
     check_and_set_defaults() {
-        [ -z "$DB_HOST" ] && echo "[ERROR] DB_HOST should be defined" && return 1
-        [ -z "$DB_USER" ] && echo "[ERROR] DB_USER should be defined" && return 1
-        [ -z "$DB_PASSWORD" ] && echo "[ERROR] DB_PASSWORD should be defined" && return 1
-        [ -z "$DB_NAME" ] && echo "[ERROR] DB_NAME should be defined" && return 1
+        [ -z "$PI_DB_HOST" ] && echo "[ERROR] PI_DB_HOST should be defined" && return 1
+        [ -z "$PI_DB_USER" ] && echo "[ERROR] PI_DB_USER should be defined" && return 1
+        [ -z "$PI_DB_PASSWORD" ] && echo "[ERROR] PI_DB_PASSWORD should be defined" && return 1
+        [ -z "$PI_DB_NAME" ] && echo "[ERROR] PI_DB_NAME should be defined" && return 1
 
         # Set the default port if it is not defined
         if [ -z "$DB_PORT" ]; then
             echo "[INFO] DB_PORT is not defined using default port"
             export DB_PORT=3306  # Default port for mariadb/mysql
-            [ "$DB_VENDOR" = "postgresql" ] && export DB_PORT=5432  # Default port for postgresql
+            [ "$PI_DB_VENDOR" = "postgresql" ] && export DB_PORT=5432  # Default port for postgresql
         fi
 
         # URL encode the password
-        encoded_password=$(printf "%s" "$DB_PASSWORD" | jq -s -R -r @uri)
+        encoded_password=$(printf "%s" "$PI_DB_PASSWORD" | jq -s -R -r @uri)
     }
 
     # Check the selected database vendor
-    case $DB_VENDOR in
+    case $PI_DB_VENDOR in
         "mariadb" | "mysql")
-            echo "[INFO] Using $DB_VENDOR ..."
+            echo "[INFO] Using $PI_DB_VENDOR ..."
 
             check_and_set_defaults
 
             # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=${DB_VENDOR}+pymysql://${DB_USER}:${encoded_password}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+            export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+pymysql://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${DB_PORT}/${PI_DB_NAME}
             ;;
 
         "postgresql")
-            echo "Using $DB_VENDOR..."
+            echo "Using $PI_DB_VENDOR..."
 
             check_and_set_defaults
 
             # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=${DB_VENDOR}+psycopg2://${DB_USER}:${encoded_password}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+            export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${DB_PORT}/${PI_DB_NAME}
             ;;
 
         *)
             echo ""
-            echo "[WARNING] DB_VENDOR environment variable is not set. Using default SQLite..."
+            echo "[WARNING] PI_DB_VENDOR environment variable is not set. Using default SQLite..."
             echo ""
 
             # Define the SQLAlchemy database URI for SQLite
-            export SQLALCHEMY_DATABASE_URI=sqlite://///data/privacyidea/privacyidea.db
+            export SQLALCHEMY_DATABASE_URI=sqlite:////${PI_DATA_DIR}/privacyidea.db
             ;;
     esac
 
     # Check if the configuration file already exists
-    if [ ! -f /etc/privacyidea/pi.cfg ]; then
+    if [ ! -f ${PI_CFG_DIR}/pi.cfg ]; then
 
         # Check if SQLALCHEMY_DATABASE_URI is defined
         if [ -z "$SQLALCHEMY_DATABASE_URI" ]; then
@@ -79,7 +79,7 @@ function generate_pi_config {
             echo ""
         else
             # Use the pi-config.template file as a template and substitute the necessary variables
-            envsubst < /opt/templates/pi-config.template > /etc/privacyidea/pi.cfg
+            envsubst < /opt/templates/pi-config.template > ${PI_CFG_DIR}/pi.cfg
         fi
     fi
 
@@ -116,15 +116,15 @@ function prestart_privacyidea {
     if [ "${PI_SKIP_BOOTSTRAP}" = false ]; then
 
         # Create keys directory if not exists
-        if [ ! -d /data/privacyidea/keys ]; then
+        if [ ! -d ${PI_DATA_DIR}/keys ]; then
             echo ""
             echo "[INFO] Creating keys directory..."
             echo ""
-            mkdir /data/privacyidea/keys
+            mkdir ${PI_DATA_DIR}/keys
         fi
 
         # Create encryption key file if not exists
-        if [ ! -f /data/privacyidea/keys/encfile ]; then
+        if [ ! -f ${PI_DATA_DIR}/keys/encfile ]; then
             echo ""
             echo "[INFO]  Encryption key file not found, creating a new one..."
             echo ""
@@ -132,7 +132,7 @@ function prestart_privacyidea {
         fi
 
         # Create audit keys if not exists
-        if [ ! -f /data/privacyidea/keys/private.pem ]; then
+        if [ ! -f ${PI_DATA_DIR}/keys/private.pem ]; then
             echo ""
             echo "[INFO] Creating audit keys..."
             echo ""

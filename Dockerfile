@@ -1,64 +1,31 @@
-FROM python:3.8.18-bookworm
+ARG BASE_IMAGE_TAG=3.8.18-slim-bookworm
 
+FROM python:$BASE_IMAGE_TAG as builder
+ENV VIRTUAL_ENV=/opt/privacyidea
+WORKDIR $VIRTUAL_ENV
+RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev
+COPY requirements.txt requirements.txt
+RUN python3 -m venv "$VIRTUAL_ENV" && . $VIRTUAL_ENV/bin/activate && pip3 install wheel && pip3 install -r requirements.txt
+
+FROM python:$BASE_IMAGE_TAG
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
+ENV PI_SKIP_BOOTSTRAP=false \
+    PI_DB_VENDOR=sqlite \
+    PI_HOME=/opt/privacyidea \
+    PI_DATA_DIR=/data/privacyidea \
+    PI_CFG_DIR=/etc/privacyidea \
+    PI_CFG_FILE=pi.cfg
 
 COPY prebuildfs /
-
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates gettext-base nginx tini tree jq && \
-    apt-get clean
-
-# Create directories and user for PrivacyIdea and set ownership
-RUN mkdir -p /data/privacyidea/keys \
-    /var/log/privacyidea \
-    /etc/privacyidea && \
-    adduser --gecos "PrivacyIdea User" \
-    --disabled-password \
-    --home /home/privacyidea \
-    --uid 1001 \
-    privacyidea && \
-    usermod -g 1001 privacyidea && \
-    chown -R privacyidea:privacyidea /var/log/privacyidea /data/privacyidea /etc/privacyidea
-
-# Set environment variables for uWSGI and Nginx
-ENV UWSGI_INI=/etc/uwsgi/uwsgi.ini \
-    UWSGI_CHEAPER=2 \
-    UWSGI_PROCESSES=16 \
-    NGINX_MAX_UPLOAD=1m \
-    NGINX_WORKER_PROCESSES=auto \
-    NGINX_SERVER_TOKENS=off \
-    NGINX_WORKER_CONNECTIONS=1024 \
-    NGINX_LISTEN_PORT=80 \
-    NGINX_LISTEN_SSL_PORT=443 \
-    NGINX_SSL_ENABLED=true \
-    PI_SKIP_BOOTSTRAP=false \
-    DB_VENDOR=sqlite \
-    PI_HOME=/opt/privacyidea \
-    VIRTUAL_ENV=/opt/privacyidea
-
-# Set environment variables for Python
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-
-# Set the PrivacyIdea version to install
-ARG PI_VERSION=3.9.1
-
-# Create a virtual environment for PrivacyIdea and install its dependencies
-RUN python3 -m venv $VIRTUAL_ENV && \
-    pip3 install --upgrade pip && \
-    pip3 install wheel && \
-    pip3 install -r /opt/requirements.txt && \
-    rm -rf /root/.cache
-
-# Copy the rootfs directory to the root of the container filesystem
-COPY rootfs /
-
-# Expose ports 80 and 443
-EXPOSE 80/tcp
-EXPOSE 443/tcp
-
-# Set the entrypoint to the privacyidea_entrypoint.sh script
+RUN install_packages ca-certificates gettext-base tini tree jq && \
+    mkdir -p "$PI_DATA_DIR" "$PI_CFG_DIR" && \
+    chown -R nobody:nogroup "$PI_DATA_DIR" "$PI_CFG_DIR"
+USER nobody
+WORKDIR "$PI_HOME"
+COPY --from=builder /opt/privacyidea .
+COPY --chown=nobody:nogroup rootfs /
+ENV PATH="$PI_HOME/bin:$PATH"
+EXPOSE 8080/tcp
+VOLUME [ "$PI_DATA_DIR" ]
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/privacyidea_entrypoint.sh"]
-
-WORKDIR /opt/privacyidea
-
-VOLUME [ "/data/privacyidea" ]
