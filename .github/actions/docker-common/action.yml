@@ -83,6 +83,8 @@ runs:
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
         build-args: BASE_IMAGE_TAG=${{ inputs.python_base_image }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
     - name: Container Structure Tests
       shell: bash
       run: |
@@ -102,3 +104,5 @@ runs:
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
         build-args: BASE_IMAGE_TAG=${{ inputs.python_base_image }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
