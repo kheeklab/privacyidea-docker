@@ -1,4 +1,4 @@
-privacyIDEA==3.9.2
+privacyIDEA==3.9.3
 psycopg2==2.9.9
 grpcio==1.62.0
 grpcio-tools==1.62.0
