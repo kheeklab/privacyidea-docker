@@ -28,13 +28,6 @@ function generate_pi_config {
         [ -z "$PI_DB_PASSWORD" ] && echo "[ERROR] PI_DB_PASSWORD should be defined" && return 1
         [ -z "$PI_DB_NAME" ] && echo "[ERROR] PI_DB_NAME should be defined" && return 1
 
-        # Set the default port if it is not defined
-        if [ -z "$DB_PORT" ]; then
-            echo "[INFO] DB_PORT is not defined using default port"
-            export DB_PORT=3306  # Default port for mariadb/mysql
-            [ "$PI_DB_VENDOR" = "postgresql" ] && export DB_PORT=5432  # Default port for postgresql
-        fi
-
         # URL encode the password
         encoded_password=$(printf "%s" "$PI_DB_PASSWORD" | jq -s -R -r @uri)
     }
@@ -47,7 +40,7 @@ function generate_pi_config {
             check_and_set_defaults
 
             # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+pymysql://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${PI_DB_PORT:-DB_PORT}/${PI_DB_NAME}
+            export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+pymysql://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${PI_DB_PORT:-3306}/${PI_DB_NAME}
             ;;
 
         "postgresql")
