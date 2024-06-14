@@ -73,6 +73,7 @@ function generate_pi_config {
                 ;;
         esac
     fi
+
     # Check if the configuration file already exists
     if [ ! -f ${PI_CFG_DIR}/pi.cfg ]; then
 
