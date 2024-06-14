@@ -87,6 +87,7 @@ The Khalibre privacyIDEA container can create a default admin user by setting th
 | `PI_DB_HOST` | Database host | |
 | `PI_DB_PORT` | Database port | depnds on PI_DB_VENDOR default for each type |
 | `PI_DB_ARGS` | Addiitional DB attributes | |
+| `SQLALCHEMY_DATABASE_URI` | Full SQL connection strinng | |
 | `PI_CACHE_TYPE` | privacyIDEA cache type | simple |
 | `PI_PEPPER` | This is used to encrypt the admin passwords | |
 | `PI_AUDIT_NO_SIGN` | If you by any reason want to avoid signing audit entries set it true | false |
