@@ -56,7 +56,12 @@ function generate_pi_config {
             check_and_set_defaults
 
             # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${DB_PORT}/${PI_DB_NAME}
+            if [ -z "$PI_DB_ARGS" ]; then
+                export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST}&port=${PI_DB_HOST//[!,]/}
+            else
+                PI_DB_ARGS = ${PI_DB_ARGS// /}
+                export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST// /}&port=${PI_DB_HOST//[!,]/}&${PI_DB_ARGS//,/&}"
+            fi
             ;;
 
         *)
