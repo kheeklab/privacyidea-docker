@@ -11,7 +11,7 @@ function main {
     echo ""
 
     # Set the mount directory for configuration files.
-    if [ -d /etc/privacyidea/mount ]s
+    if [ -d /etc/privacyidea/mount ]
     then
         PI_MOUNT_DIR=/etc/privacyidea/mount
     else
