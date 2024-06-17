@@ -28,46 +28,51 @@ function generate_pi_config {
         [ -z "$PI_DB_PASSWORD" ] && echo "[ERROR] PI_DB_PASSWORD should be defined" && return 1
         [ -z "$PI_DB_NAME" ] && echo "[ERROR] PI_DB_NAME should be defined" && return 1
 
-        # Set the default port if it is not defined
-        if [ -z "$DB_PORT" ]; then
-            echo "[INFO] DB_PORT is not defined using default port"
-            export DB_PORT=3306  # Default port for mariadb/mysql
-            [ "$PI_DB_VENDOR" = "postgresql" ] && export DB_PORT=5432  # Default port for postgresql
-        fi
-
         # URL encode the password
         encoded_password=$(printf "%s" "$PI_DB_PASSWORD" | jq -s -R -r @uri)
     }
 
-    # Check the selected database vendor
-    case $PI_DB_VENDOR in
-        "mariadb" | "mysql")
-            echo "[INFO] Using $PI_DB_VENDOR ..."
+    if [ -z "$SQLALCHEMY_DATABASE_URI" ]
+        # Check the selected database vendor
+        case $PI_DB_VENDOR in
+            "mariadb" | "mysql")
+                echo "[INFO] Using $PI_DB_VENDOR ..."
 
-            check_and_set_defaults
+                check_and_set_defaults
 
-            # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+pymysql://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${DB_PORT}/${PI_DB_NAME}
-            ;;
+                # Define the SQLAlchemy database URI using the necessary variables
+                if [ -z "$PI_DB_ARGS" ]; then
+                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+pymysql://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${PI_DB_PORT:-3306}/${PI_DB_NAME}"
+                else
+                    PI_DB_ARGS = ${PI_DB_ARGS// /}
+                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+pymysql://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${PI_DB_PORT:-3306}/${PI_DB_NAME}?${PI_DB_ARGS//,/&}"
+                fi
+                ;;
 
-        "postgresql")
-            echo "Using $PI_DB_VENDOR..."
+            "postgresql")
+                echo "Using $PI_DB_VENDOR..."
 
-            check_and_set_defaults
+                check_and_set_defaults
 
-            # Define the SQLAlchemy database URI using the necessary variables
-            export SQLALCHEMY_DATABASE_URI=${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${DB_PORT}/${PI_DB_NAME}
-            ;;
+                # Define the SQLAlchemy database URI using the necessary variables
+                if [ -z "$PI_DB_ARGS" ]; then
+                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST// /}&port=${PI_DB_PORT:-${PI_DB_HOST//[!,]/}}"
+                else
+                    PI_DB_ARGS = ${PI_DB_ARGS// /}
+                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST// /}&port=${PI_DB_PORT:-${PI_DB_HOST//[!,]/}}&${PI_DB_ARGS//,/&}"
+                fi
+                ;;
 
-        *)
-            echo ""
-            echo "[WARNING] PI_DB_VENDOR environment variable is not set. Using default SQLite..."
-            echo ""
+            *)
+                echo ""
+                echo "[WARNING] PI_DB_VENDOR environment variable is not set. Using default SQLite..."
+                echo ""
 
-            # Define the SQLAlchemy database URI for SQLite
-            export SQLALCHEMY_DATABASE_URI=sqlite:////${PI_DATA_DIR}/privacyidea.db
-            ;;
-    esac
+                # Define the SQLAlchemy database URI for SQLite
+                export SQLALCHEMY_DATABASE_URI=sqlite:////${PI_DATA_DIR}/privacyidea.db
+                ;;
+        esac
+    fi
 
     # Check if the configuration file already exists
     if [ ! -f ${PI_CFG_DIR}/pi.cfg ]; then
