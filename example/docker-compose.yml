@@ -16,15 +16,16 @@ services:
     ports:
       - '8080:8080'
     environment:
-      - PI_DB_VENDOR=mariadb
-      - PI_DB_NAME=privacyidea
-      - PI_DB_HOST=pi-db
-      - PI_DB_USER=privacyidea
+      - PI_DB_VENDOR="mariadb"
+      - PI_DB_NAME="privacyidea"
+      - PI_DB_HOST="pi-db"
+      - PI_DB_USER="privacyidea"
       - PI_DB_PASSWORD=privacyidea@123
-      - PI_SECRET_KEY=suppersecretkey
-      - PI_PEPPER=secretworduseforadminencrypt
+      - PI_SECRET_KEY="suppersecretkey"
+      - PI_PEPPER="secretworduseforadminencrypt"
       - PI_PAGE_TITLE=pivacyIDEA
       - PI_SUPERUSER_REALM="administrator,api"
+      - PI_DB_ARGS="ssl_check_hostname=false"
     depends_on:
       - pi-db
   wp-db:

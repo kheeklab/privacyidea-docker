@@ -20,7 +20,7 @@ jobs:
         with:
           platforms: linux/amd64
           push: false
-          python_base_image: 3.8.18-slim-bookworm
+          python_base_image: 3.8.19-slim-bookworm
   python-39-bookworm:
     name: Python 3.9 / Bookworm
     permissions:
@@ -34,7 +34,7 @@ jobs:
         with:
           platforms: linux/amd64
           push: false
-          python_base_image: 3.9.18-slim-bookworm
+          python_base_image: 3.9.19-slim-bookworm
   python-310-bookworm:
     name: Python 3.10 / Bookworm
     permissions:
@@ -62,7 +62,7 @@ jobs:
         with:
           platforms: linux/amd64
           push: false
-          python_base_image: 3.8.18-slim-bullseye
+          python_base_image: 3.8.19-slim-bullseye
   python-39-bullseye:
     name: Python 3.9 / Bullseye
     permissions:
@@ -76,7 +76,7 @@ jobs:
         with:
           platforms: linux/amd64
           push: false
-          python_base_image: 3.9.18-slim-bullseye
+          python_base_image: 3.9.19-slim-bullseye
   python-310-bullseye:
     name: Python 3.10 / Bullseye
     permissions:

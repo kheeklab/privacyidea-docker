@@ -1,6 +1,6 @@
 privacyIDEA==3.9.3
 psycopg2==2.9.9
-grpcio==1.64.0
-grpcio-tools==1.64.0
+grpcio==1.64.1
+grpcio-tools==1.64.1
 gunicorn==22.0.0
 gssapi==1.8.3

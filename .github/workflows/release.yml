@@ -22,7 +22,7 @@ jobs:
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
-          python_base_image: 3.8.18-slim-bookworm
+          python_base_image: 3.8.19-slim-bookworm
           is_default_version: true
   python-39-bookworm:
     name: Python 3.9 / Bookworm
@@ -38,7 +38,7 @@ jobs:
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
-          python_base_image: 3.9.18-slim-bookworm
+          python_base_image: 3.9.19-slim-bookworm
           is_default_version: false
   python-310-bookworm:
     name: Python 3.10 / Bookworm
@@ -70,7 +70,7 @@ jobs:
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
-          python_base_image: 3.8.18-slim-bullseye
+          python_base_image: 3.8.19-slim-bullseye
           is_default_version: false
   python-39-bullseye:
     name: Python 3.9 / Bullseye
@@ -86,7 +86,7 @@ jobs:
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
-          python_base_image: 3.9.18-slim-bullseye
+          python_base_image: 3.9.19-slim-bullseye
           is_default_version: false
   python-310-bullseye:
     name: Python 3.10 / Bullseye
