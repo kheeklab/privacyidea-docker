@@ -3,7 +3,7 @@ ARG BASE_IMAGE_TAG=3.8.18-slim-bookworm
 FROM python:$BASE_IMAGE_TAG as builder
 ENV VIRTUAL_ENV=/opt/privacyidea
 WORKDIR $VIRTUAL_ENV
-RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev
+RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev curl
 COPY requirements.txt requirements.txt
 RUN python3 -m venv "$VIRTUAL_ENV" && . $VIRTUAL_ENV/bin/activate && pip3 install wheel && pip3 install -r requirements.txt
 
