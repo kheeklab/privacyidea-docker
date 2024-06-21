@@ -42,9 +42,10 @@ function generate_pi_config {
             echo "[ERROR] $var_name should be defined"
             exit 1
         else
-            # Remove single and double quotes
+            # Remove single, double quotes and spaces
             var_value=${var_value//\'/}
             var_value=${var_value//\"/}
+            var_value=${var_value// /}
             eval "$var_name='$var_value'"
         fi
     }
@@ -71,10 +72,10 @@ function generate_pi_config {
 
                 # Define the SQLAlchemy database URI using the necessary variables
                 if [ -z "$PI_DB_ARGS" ]; then
-                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST// /}&port=${PI_DB_PORT:-5432}"
+                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST}&port=${PI_DB_PORT:-5432}"
                 else
                     check_and_clean_vars "PI_DB_ARGS"
-                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST// /}&port=${PI_DB_PORT:-5432}&${PI_DB_ARGS//,/&}"
+                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST}&port=${PI_DB_PORT:-${PI_DB_HOST//[!,]/}}&${PI_DB_ARGS//,/&}"
                 fi
                 ;;
 
