@@ -3,7 +3,7 @@ ARG BASE_IMAGE_TAG=3.8.18-slim-bookworm
 FROM python:$BASE_IMAGE_TAG as builder
 ENV VIRTUAL_ENV=/opt/privacyidea
 WORKDIR $VIRTUAL_ENV
-RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev curl
+RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev
 COPY requirements.txt requirements.txt
 RUN python3 -m venv "$VIRTUAL_ENV" && . $VIRTUAL_ENV/bin/activate && pip3 install wheel && pip3 install -r requirements.txt
 
@@ -18,7 +18,7 @@ ENV PI_SKIP_BOOTSTRAP=false \
 
 COPY prebuildfs /
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates gettext-base tini tree jq libpq5 && \
+RUN install_packages ca-certificates gettext-base tini tree jq libpq5 realmd krb5-user curl && \
     mkdir -p "$PI_DATA_DIR" "$PI_CFG_DIR" && \
     chown -R nobody:nogroup "$PI_DATA_DIR" "$PI_CFG_DIR"
 USER nobody
