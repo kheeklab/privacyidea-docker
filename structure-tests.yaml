@@ -6,8 +6,6 @@ metadataTest:
       value: "false"
     - key: PI_DB_VENDOR
       value: "sqlite"
-    - key: PI_HOME
-      value: "/opt/privacyidea"
   workdir: "/opt/privacyidea"
   entrypoint: ["/usr/bin/tini", "--", "/usr/local/bin/privacyidea_entrypoint.sh"]
   exposedPorts: ["8080"]

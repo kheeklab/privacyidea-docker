@@ -1,4 +1,4 @@
-name: Build and test on PR
+name: PR
 on:
   pull_request:
     branches:
@@ -7,11 +7,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  python-38-bookworm:
-    name: Python 3.8 / Bookworm
+  build:
+    name: Build
     permissions:
       pull-requests: write
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python_version: [ 3.8.19, 3.9.19, 3.10.13 ]
+        pi_version: [ 3.9.3, 3.9.2, 3.9.1 ]
+        os_version: [ slim-bookworm, slim-bullseye ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,74 +25,5 @@ jobs:
         with:
           platforms: linux/amd64
           push: false
-          python_base_image: 3.8.19-slim-bookworm
-  python-39-bookworm:
-    name: Python 3.9 / Bookworm
-    permissions:
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Docker common actions
-        uses: ./.github/actions/docker-common
-        with:
-          platforms: linux/amd64
-          push: false
-          python_base_image: 3.9.19-slim-bookworm
-  python-310-bookworm:
-    name: Python 3.10 / Bookworm
-    permissions:
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Docker common actions
-        uses: ./.github/actions/docker-common
-        with:
-          platforms: linux/amd64
-          push: false
-          python_base_image: 3.10.13-slim-bookworm
-  python-38-bullseye:
-    name: Python 3.8 / Bullseye
-    permissions:
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Docker common actions
-        uses: ./.github/actions/docker-common
-        with:
-          platforms: linux/amd64
-          push: false
-          python_base_image: 3.8.19-slim-bullseye
-  python-39-bullseye:
-    name: Python 3.9 / Bullseye
-    permissions:
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Docker common actions
-        uses: ./.github/actions/docker-common
-        with:
-          platforms: linux/amd64
-          push: false
-          python_base_image: 3.9.19-slim-bullseye
-  python-310-bullseye:
-    name: Python 3.10 / Bullseye
-    permissions:
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Docker common actions
-        uses: ./.github/actions/docker-common
-        with:
-          platforms: linux/amd64
-          push: false
-          python_base_image: 3.10.13-slim-bullseye
+          python_base_image: ${{ matrix.python_version }}-${{ matrix.os_version }}
+          pi_version: ${{ matrix.pi_version }}
