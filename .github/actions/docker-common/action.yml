@@ -36,6 +36,11 @@ inputs:
     default: false
     required: false
     description: Is this the default versions
+  pi_version:
+    type: string
+    default: ''
+    required: true
+    description: Version of privacyidea
 runs:
   using: "composite"
   steps:
@@ -62,11 +67,10 @@ runs:
           khalibre/privacyidea
           ghcr.io/Khalibre/privacyidea
         tags: |
-          type=raw,value={{branch}}-python-${{ inputs.python_base_image }},enable=${{ github.event_name == 'push' && github.ref_type == 'branch' }}
-          type=raw,value={{branch}},enable=${{ github.event_name == 'push' && github.ref_type == 'branch' }}
+          type=semver,pattern={{major}}.{{minor}}.{{patch}},enable=${{ github.event_name == 'push' && inputs.is_default_version && github.ref_type == 'tag' }}
           type=raw,value={{tag}}-python-${{ inputs.python_base_image }},enable=${{ github.event_name == 'push' && github.ref_type == 'tag' }}
           type=raw,value={{tag}},enable=${{ github.event_name == 'push' && inputs.is_default_version && github.ref_type == 'tag' }}
-          type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') && inputs.is_default_version }}
+          type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
           type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
           type=sha,enable=${{ github.event_name == 'push' }}
     - name: Set up QEMU
@@ -82,7 +86,9 @@ runs:
         platforms: linux/amd64
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
-        build-args: BASE_IMAGE_TAG=${{ inputs.python_base_image }}
+        build-args: |
+          BASE_IMAGE_TAG=${{ inputs.python_base_image }}
+          PI_VERSION=${{ inputs.pi_version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
     - name: Container Structure Tests
@@ -103,6 +109,8 @@ runs:
         platforms: ${{ inputs.platforms }}
         tags: ${{ steps.docker_meta.outputs.tags }}
         labels: ${{ steps.docker_meta.outputs.labels }}
-        build-args: BASE_IMAGE_TAG=${{ inputs.python_base_image }}
+        build-args: |
+          BASE_IMAGE_TAG=${{ inputs.python_base_image }}
+          PI_VERSION=${{ inputs.pi_version }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
