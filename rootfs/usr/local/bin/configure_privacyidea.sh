@@ -122,6 +122,20 @@ function prestart_privacyidea {
         echo ""
     fi
 
+
+    # Check if DB update is needed and perform backup and upgrade
+    if [ "$PI_DB_UPGRADE" = "TRUE" ]; then
+        PI_MIGRATION_DIR="/opt/privacyidea/lib/privacyidea/migrations"
+        CUR_REV=$(/opt/privacyidea/bin/pi-manage db heads -d $PI_MIGRATION_DIR 2>/dev/null | cut -f1 -d ' ')
+        if [[ "$CUR_REV" != $(/opt/privacyidea/bin/pi-manage db current -d $PI_MIGRATION_DIR 2>/dev/null | tail -1) ]]; then
+            if [ ! -z "$PI_BACKUP_PATH" ]; then
+                /opt/privacyidea/bin/pi-manage backup create -d ${PI_BACKUP_PATH:-"/mnt/files/backups/"}
+            fi
+            /opt/privacyidea/bin/pi-manage db upgrade $CUR_REV -d $PI_MIGRATION_DIR
+        fi
+    fi
+
+
     # Execute scripts from mounted directory
     if [ -d "${PI_MOUNT_DIR}/scripts" ]; then
         execute_scripts "${PI_MOUNT_DIR}/scripts"
