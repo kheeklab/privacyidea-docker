@@ -87,7 +87,7 @@ The Khalibre privacyIDEA container can create a default admin user by setting th
 | `PI_DB_HOST` | Database host. For on postgres use it support multiple hosts with comma separated | |
 | `PI_DB_PORT` | Database port. For on postgres use it support multiple hosts with comma separated | depnds on PI_DB_VENDOR default for each type |
 | `PI_DB_ARGS` | Addiitional DB attributes | |
-| `PI_DB_UPGRADE` | Automatic DB Migration after versiion upgrade. **Experimental**, not for production use. To enable se to TRUE vale(case sensetive) | |
+| `PI_DB_UPGRADE` | Automatic DB Migration after versiion upgrade. **Experimental**, not for production use. To enable se to TRUE value(case sensetive) | |
 | `PI_BACKUP_DIR` | For use together with PI_DB_UPGRADE -- backup directory path, don't forget to mount persistant volume | /mnt/files/backups |
 | `SQLALCHEMY_DATABASE_URI` | Full SQL connection string. If set it will override all PI_DB_* settings | |
 | `PI_CACHE_TYPE` | privacyIDEA cache type | simple |
