@@ -8,9 +8,11 @@ ARG PI_VERSION
 RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev
 COPY requirements.txt requirements.txt
 RUN python3 -m venv "$PI_HOME" && . "$PI_HOME/bin/activate" \
+    && pip3 install --upgrade pip \
+    && pip3 install wheel \
     && pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v"$PI_VERSION"/requirements.txt \
     && pip3 install privacyidea=="$PI_VERSION" \
-    && pip3 install wheel && pip3 install -r requirements.txt
+    && pip3 install -r requirements.txt
 
 FROM python:$BASE_IMAGE_TAG
 ARG PI_HOME
