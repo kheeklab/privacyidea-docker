@@ -15,7 +15,7 @@ RUN python3 -m venv "$PI_HOME" && . "$PI_HOME/bin/activate" \
     && pip3 install -r requirements.txt
 
 FROM python:$BASE_IMAGE_TAG
-ARG PI_HOME
+ARG PI_HOME=/opt/privacyidea
 LABEL maintainer="Sida Say <sida.say@khalibre.com>"
 ENV PI_SKIP_BOOTSTRAP=false \
     PI_DB_VENDOR=sqlite \
