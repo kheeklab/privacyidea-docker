@@ -115,7 +115,6 @@ function prestart_privacyidea {
         echo ""
         tree --noreport "${PI_MOUNT_DIR}/files"
         echo ""
-        
         echo "[privacyIDEA] ... into ${PI_HOME}."
         cp -RP "${PI_MOUNT_DIR}/files/"* "${PI_HOME}"
         echo ""
