@@ -107,6 +107,8 @@ function generate_pi_config {
 # Function to perform pre-start tasks for PrivacyIDEA
 function prestart_privacyidea {
     # Copy files from mounted directory to PI_HOME
+    PI_HOME=${PI_HOME:-/opt/privacyidea}
+    export $PI_HOME
     if [ -d "${PI_MOUNT_DIR}/files" ] && [ "$(ls -A "${PI_MOUNT_DIR}/files")" ]; then
         echo ""
         echo "[privacyIDEA] Copying files from ${PI_MOUNT_DIR}/files:"
@@ -114,7 +116,7 @@ function prestart_privacyidea {
         tree --noreport "${PI_MOUNT_DIR}/files"
         echo ""
         echo "[privacyIDEA] ... into ${PI_HOME}."
-        cp -r "${PI_MOUNT_DIR}/files"/* "${PI_HOME}"
+        cp -RL "${PI_MOUNT_DIR}/files/"* "${PI_HOME}"
         echo ""
     else
         echo ""
