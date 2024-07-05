@@ -108,7 +108,7 @@ function generate_pi_config {
 function prestart_privacyidea {
     # Copy files from mounted directory to PI_HOME
     PI_HOME=${PI_HOME:-/opt/privacyidea}
-    export $PI_HOME
+    export PI_HOME
     if [ -d "${PI_MOUNT_DIR}/files" ] && [ "$(ls -A "${PI_MOUNT_DIR}/files")" ]; then
         echo ""
         echo "[privacyIDEA] Copying files from ${PI_MOUNT_DIR}/files:"
