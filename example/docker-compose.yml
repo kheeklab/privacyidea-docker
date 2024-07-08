@@ -12,7 +12,7 @@ services:
       - MARIADB_USER=privacyidea
       - MARIADB_PASSWORD=privacyidea@123
   pi:
-    image: 'khalibre/privacyidea:dev'
+    image: 'kheeklab/privacyidea:dev'
     ports:
       - '8080:8080'
     environment:

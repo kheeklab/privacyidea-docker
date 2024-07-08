@@ -1,6 +1,6 @@
 # PrivacyIDEA Docker Image
 
-![main workflow](https://github.com/Khalibre/privacyidea-docker/actions/workflows/release.yml/badge.svg) ![GitHub](https://img.shields.io/github/license/Khalibre/privacyidea-docker) ![Docker Pulls](https://img.shields.io/docker/pulls/khalibre/privacyidea) ![GitHub Repo stars](https://img.shields.io/github/stars/Khalibre/privacyidea-docker)
+![main workflow](https://github.com/kheeklab/privacyidea-docker/actions/workflows/release.yml/badge.svg) ![GitHub](https://img.shields.io/github/license/kheeklab/privacyidea-docker) ![Docker Pulls](https://img.shields.io/docker/pulls/kheeklab/privacyidea) ![GitHub Repo stars](https://img.shields.io/github/stars/kheeklab/privacyidea-docker)
 
 This is a build environment to build a docker image for privacyIDEA based on [official Python image](https://hub.docker.com/_/python) and [PrivacyIDEA](https://github.com/privacyidea/privacyidea)
 
@@ -12,14 +12,14 @@ This is a build environment to build a docker image for privacyIDEA based on [of
 The docker image is a self-contained Debian with privacyIDEA installed, which will run on every distribution.
 
 > [!NOTE]
-> **Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from Khalibre.
+> **Disclaimer**: The respective trademarks mentioned in the offering are owned by the respective companies. We do not provide a commercial license for any of these products. This listing has an open-source license. privacyIDEA is run and maintained by NetKnights, which is a complete and separate project from kheeklab.
 
 ### Registry
 
 The image is stored in bellow registries:
 
-- [Docker Hub](https://hub.docker.com/r/khalibre/privacyidea)
-- [GitHub Container Registry](https://github.com/Khalibre/privacyidea-docker/pkgs/container/privacyidea)
+- [Docker Hub](https://hub.docker.com/r/kheeklab/privacyidea)
+- [GitHub Container Registry](https://github.com/kheeklab/privacyidea-docker/pkgs/container/privacyidea)
 
 ### Tags
 
@@ -67,7 +67,7 @@ Login to <http://localhost> with **admin/privacyidea**
 
 ### Admin credentials
 
-The Khalibre privacyIDEA container can create a default admin user by setting the following environment variables:
+The kheeklab privacyIDEA container can create a default admin user by setting the following environment variables:
 
 - `PI_ADMIN_USER`: Administrator default user. Default: **admin**.
 - `PI_ADMIN_PASSWORD`:  Administrator default password. Default: **privacyidea**
@@ -201,10 +201,10 @@ We'd love for you to contribute to this container. You can request new features 
 
 ## Star History
 
-<a href="https://star-history.com/#Khalibre/privacyidea-docker&Date">
+<a href="https://star-history.com/#kheeklab/privacyidea-docker&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Khalibre/privacyidea-docker&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Khalibre/privacyidea-docker&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Khalibre/privacyidea-docker&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=kheeklab/privacyidea-docker&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=kheeklab/privacyidea-docker&type=Date" />
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=kheeklab/privacyidea-docker&type=Date" />
   </picture>
 </a>

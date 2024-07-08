@@ -16,7 +16,7 @@ RUN python3 -m venv "$PI_HOME" && . "$PI_HOME/bin/activate" \
 
 FROM python:$BASE_IMAGE_TAG
 ARG PI_HOME
-LABEL maintainer="Sida Say <sida.say@khalibre.com>"
+LABEL maintainer="Sida Say <sida@kheek.com>"
 ENV PI_SKIP_BOOTSTRAP=false \
     PI_DB_VENDOR=sqlite \
     PI_DATA_DIR=/data/privacyidea \

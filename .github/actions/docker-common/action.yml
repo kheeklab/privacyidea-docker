@@ -64,8 +64,8 @@ runs:
         flavor: |
           latest=false
         images: |
-          khalibre/privacyidea
-          ghcr.io/Khalibre/privacyidea
+          kheeklab/privacyidea
+          ghcr.io/kheeklab/privacyidea
         tags: |
           type=semver,pattern={{major}}.{{minor}}.{{patch}},enable=${{ github.event_name == 'push' && inputs.is_default_version && github.ref_type == 'tag' }}
           type=raw,value={{tag}}-python-${{ inputs.python_base_image }},enable=${{ github.event_name == 'push' && github.ref_type == 'tag' }}
