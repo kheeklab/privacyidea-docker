@@ -1,5 +1,5 @@
 psycopg2==2.9.9
-grpcio==1.64.1
+grpcio==1.65.0
 grpcio-tools==1.64.1
 gunicorn==22.0.0
 gssapi==1.8.3
