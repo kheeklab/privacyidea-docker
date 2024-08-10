@@ -11,6 +11,7 @@ RUN python3 -m venv "$PI_HOME" && . "$PI_HOME/bin/activate" \
     && pip3 install --upgrade pip \
     && pip3 install wheel \
     && pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v"$PI_VERSION"/requirements.txt \
+    && pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v"$PI_VERSION"/requirements-kerberos.txt \
     && pip3 install privacyidea=="$PI_VERSION" \
     && pip3 install -r requirements.txt
 
