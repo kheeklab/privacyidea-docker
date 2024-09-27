@@ -1,5 +1,5 @@
 ARG BASE_IMAGE_TAG=3.8.18-slim-bookworm
-ARG PI_VERSION=3.9.3
+ARG PI_VERSION=3.10
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder

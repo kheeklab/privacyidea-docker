@@ -15,8 +15,8 @@ jobs:
     strategy:
       matrix:
         python_version: [ 3.8.19, 3.9.19, 3.10.13 ]
-        pi_version: [ 3.9.3, 3.9.2, 3.9.1 ]
         os_version: [ slim-bookworm, slim-bullseye ]
+        pi_version: [ "3.10" ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4

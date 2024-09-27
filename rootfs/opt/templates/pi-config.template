@@ -33,3 +33,4 @@ PI_VASCO_LIBRARY = None
 PI_ENGINE_REGISTRY_CLASS = os.environ.get("PI_ENGINE_REGISTRY_CLASS", "shared")
 PI_PAGE_TITLE = os.environ.get("PI_PAGE_TITLE", "privacyIDEA Authentication System")
 PI_AUDIT_SQL_TRUNCATE = True
+PI_NODE_UUID= os.environ.get("PI_NODE_UUID", "8e4272a9-9037-40df-8aa3-976e4a04b5a9")
