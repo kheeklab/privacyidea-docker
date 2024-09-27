@@ -1,4 +1,4 @@
-ARG BASE_IMAGE_TAG=3.8.18-slim-bookworm
+ARG BASE_IMAGE_TAG=3.12.7-slim-bullseye
 ARG PI_VERSION=3.10
 ARG PI_HOME=/opt/privacyidea
 

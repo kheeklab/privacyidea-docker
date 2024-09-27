@@ -8,18 +8,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  docker-build-3100:
-    name: Build 3.10
+  docker-build:
+    name: Build
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/v3.10.0') || github.ref == 'refs/heads/main' }}
-    strategy:
-      matrix:
-        python_version: [ 3.8.19, 3.9.19, 3.10.14, 3.11.9, 3.12.5 ]
-        os_version: [ slim-bookworm, slim-bullseye ]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: 3.10.0
+      - name: build image
         uses: ./.github/actions/docker-common
         with:
           docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -27,6 +22,6 @@ jobs:
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
-          python_base_image: ${{ matrix.python_version }}-${{ matrix.os_version }}
-          pi_version: 3.10
-          is_default_version: ${{ matrix.python_version == '3.12.5' }}
+          python_base_image: 3.12.7-slim-bullseye
+          pi_version: '3.10'
+          is_default_version: true
