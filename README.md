@@ -28,12 +28,7 @@ The image tags are following privacyIDEA version e.g. `3.9.1` and `latest`. The 
 | Tag | Description |
 | :-- | :---------- |
 | `latest` | The latest image build from main branch |
-| `3.9.2` `3.9.2-python-3.8.18-slim-bookworm`   | The image build from base image python 3.8.18-slim-bookworm |
-| `3.9.2-python-3.9.18-slim-bookworm`   | The image build from base image python 3.9.18-slim-bookworm |
-| `3.9.2-python-3.10.13-slim-bookworm`  | The image build from base image python 3.10.13-slim-bookworm |
-| `3.9.2-python-3.8.18-slim-bullseye`   | The image build from base image python 3.8.18-slim-bullseye |
-| `3.9.2-python-3.9.18-slim-bullseye`   | The latest image from base image python 3.9.18-slim-bullseye |
-| `3.9.2-python-3.10.13-slim-bullseye`  | The latest image build from base image python 3.10.13-slim-bullseye |
+| `3.10` `3.10-python-3.12.7-bulseye`   | The image specified tag |
 
 ## Building
 
