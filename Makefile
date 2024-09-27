@@ -7,13 +7,13 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-30s %s\n", $$1, $$2}' | sort
 
 build: ## Build image
-	docker build -t khalibre/privacyidea:dev .
+	docker build -t kheeklab/privacyidea:dev .
 
 push: ## Push image
-	docker push khalibre/privacyidea:dev
+	docker push kheeklab/privacyidea:dev
 
 run: cleanup create_volume secretkey pipepper ## Run test
-	docker run -p 8080:8080 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper khalibre/privacyidea:dev
+	docker run -p 8080:8080 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper kheeklab/privacyidea:dev
 
 create_volume:
 	mkdir $(LOCAL_DATA_VOLUME)
@@ -32,6 +32,6 @@ cleanup:
 	@if [ -d $(LOCAL_DATA_VOLUME) ]; then sudo rm -rf $(LOCAL_DATA_VOLUME); fi
 
 test:
-	container-structure-test test --image khalibre/privacyidea:dev --config structure-tests.yaml
+	container-structure-test test --image kheeklab/privacyidea:dev --config structure-tests.yaml
 
 .DEFAULT_GOAL := help

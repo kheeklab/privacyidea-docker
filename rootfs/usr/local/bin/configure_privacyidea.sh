@@ -52,11 +52,10 @@ function generate_pi_config {
 
     if [ -z "$SQLALCHEMY_DATABASE_URI" ]; then
         # Check the selected database vendor
-        check_and_set_defaults
         case $PI_DB_VENDOR in
             "mariadb" | "mysql")
                 echo "[INFO] Using $PI_DB_VENDOR ..."
-
+                check_and_set_defaults
                 # Define the SQLAlchemy database URI using the necessary variables
                 if [ -z "$PI_DB_ARGS" ]; then
                     export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+pymysql://${PI_DB_USER}:${encoded_password}@${PI_DB_HOST}:${PI_DB_PORT:-3306}/${PI_DB_NAME}"
@@ -69,7 +68,7 @@ function generate_pi_config {
 
             "postgresql")
                 echo "[INFO] Using $PI_DB_VENDOR..."
-
+                check_and_set_defaults
                 # Define the SQLAlchemy database URI using the necessary variables
                 if [ -z "$PI_DB_ARGS" ]; then
                     export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST}&port=${PI_DB_PORT:-5432}"
@@ -108,7 +107,9 @@ function generate_pi_config {
 function prestart_privacyidea {
     # Copy files from mounted directory to PI_HOME
     PI_HOME=${PI_HOME:-/opt/privacyidea}
+
     export PI_HOME
+
     if [ -d "${PI_MOUNT_DIR}/files" ] && [ "$(ls -A "${PI_MOUNT_DIR}/files")" ]; then
         echo ""
         echo "[privacyIDEA] Copying files from ${PI_MOUNT_DIR}/files:"
@@ -135,6 +136,13 @@ function prestart_privacyidea {
 
     # Generate keys, create tables, and admin user
     if [ "${PI_SKIP_BOOTSTRAP}" = false ]; then
+
+        # Create database tables
+        echo ""
+        echo "[INFO] Generating privacyIDEA database tables..."
+        echo ""
+        pi-manage setup create_tables
+
         # Create keys directory if not exists
         if [ ! -d ${PI_DATA_DIR}/keys ]; then
             echo ""
@@ -148,7 +156,7 @@ function prestart_privacyidea {
             echo ""
             echo "[INFO] Encryption key file not found, creating a new one..."
             echo ""
-            pi-manage create_enckey
+            pi-manage setup create_enckey
         fi
 
         # Create audit keys if not exists
@@ -156,26 +164,20 @@ function prestart_privacyidea {
             echo ""
             echo "[INFO] Creating audit keys..."
             echo ""
-            pi-manage create_audit_keys
+            pi-manage setup create_audit_keys
         fi
-
-        # Create database tables
-        echo ""
-        echo "[INFO] Generating privacyIDEA database tables..."
-        echo ""
-        pi-manage create_tables
 
         # Create admin user if not specified through environment variables
         if [ -z "${PI_ADMIN_USER}" ] || [ -z "${PI_ADMIN_PASSWORD}" ]; then
             echo ""
             echo "[INFO] Creating default admin user. [WARNING]: This is not recommended for production environments. Please set PI_ADMIN_USER and PI_ADMIN_PASSWORD environment variables to specify the admin user in production."
             echo ""
-            pi-manage admin add admin -p privacyidea
+            pi-manage admin add admin --password privacyidea
         else
             echo ""
             echo "[INFO] Creating admin user from specified environment variables..."
             echo ""
-            pi-manage admin add "${PI_ADMIN_USER}" -p "${PI_ADMIN_PASSWORD}"
+            pi-manage admin add "${PI_ADMIN_USER}" --password "${PI_ADMIN_PASSWORD}"
         fi
     else
         echo ""
