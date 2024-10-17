@@ -1,2 +1,2 @@
-psycopg2==2.9.9
+psycopg2==2.9.10
 gunicorn==23.0.0
