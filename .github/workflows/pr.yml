@@ -21,4 +21,4 @@ jobs:
           platforms: linux/amd64
           push: false
           python_base_image: 3.12.7-slim-bullseye
-          pi_version: '3.10'
+          pi_version: '3.10.1'
