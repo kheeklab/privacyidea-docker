@@ -1,5 +1,5 @@
 ARG BASE_IMAGE_TAG=3.12.7-slim-bullseye
-ARG PI_VERSION=3.10
+ARG PI_VERSION=3.10.1
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder
