@@ -95,9 +95,11 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 | `PI_SECRET_KEY` | This is used to encrypt the auth_token | |
 | `PI_SUPERUSER_REALM` | The realm, where users are allowed to login as administrators in comma separated value | administrator |
 | `PI_SKIP_BOOTSTRAP` | Set this to true to prevent the container to run setup again | false |
+| `PI_AUTO_UPDATE` | Set this to true to automatically update privacyIDEA. Only effect when `PI_SKIP_BOOTSTRAP` is set to **true** | false |
 
 > [!WARNING]
 > Be careful and setting `PI_SKIP_BOOTSTRAP` to **true** after first initialization. This will prevent the container to run setup again or your data such as admin credentials, secret keys, etc will be overwritten.
+> `PI_AUTO_UPDATE` set to **true** will update privacyIDEA to the latest version. Make sure you have backup your data before setting `PI_AUTO_UPDATE` to **true**.
 
 ### gunicorn environment variables
 

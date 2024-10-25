@@ -184,6 +184,12 @@ function prestart_privacyidea {
         echo "[INFO] Skipping key generation, table creation, and admin user creation."
         echo ""
     fi
+
+    if [ "${PI_SKIP_BOOTSTRAP}" = true ] && [ "${PI_AUTO_UPDATE}" = true ] ; then
+        echo "Auto updating privacyIDEA..."
+        privacyidea-schema-upgrade /opt/privacyidea/lib/privacyidea/migrations
+        echo "privacyIDEA successfully updated."
+    fi
 }
 
 main

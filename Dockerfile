@@ -19,6 +19,7 @@ FROM python:$BASE_IMAGE_TAG
 ARG PI_HOME
 LABEL maintainer="Sida Say <sida@kheek.com>"
 ENV PI_SKIP_BOOTSTRAP=false \
+    PI_AUTO_UPDATE=false \
     PI_DB_VENDOR=sqlite \
     PI_DATA_DIR=/data/privacyidea \
     PI_CFG_DIR=/etc/privacyidea \

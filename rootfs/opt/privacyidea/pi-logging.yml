@@ -1,0 +1,20 @@
+version: 1
+formatters:
+  detail:
+    class: privacyidea.lib.log.SecureFormatter
+    format: '[%(asctime)s][%(process)d][%(thread)d][%(levelname)s][%(name)s:%(lineno)d] %(message)s'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: INFO
+    formatter: detail
+
+loggers:
+  privacyidea:
+    level: INFO
+    handlers: [console]
+
+root:
+  level: WARNING
+  handlers: [console]
