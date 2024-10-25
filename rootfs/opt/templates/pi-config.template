@@ -16,6 +16,7 @@ if PI_PEPPER is None:
 SUPERUSER_REALM = os.environ.get('PI_SUPERUSER_REALM','administrator').split(',')
 
 SQLALCHEMY_DATABASE_URI = "$SQLALCHEMY_DATABASE_URI"
+SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 3600, "pool_size":10, "pool_timeout": 30, "max_overflow": 20}
 PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/keys/encfile")
 PI_HSM = os.environ.get("PI_HSM", "default")
 PI_AUDIT_NO_SIGN = os.environ.get("PI_AUDIT_NO_SIGN", "False").lower() == "true"
@@ -24,6 +25,9 @@ PI_AUDIT_MODULE = os.environ.get("", "privacyidea.lib.auditmodules.sqlaudit")
 PI_AUDIT_KEY_PRIVATE = os.environ.get("PI_AUDIT_KEY_PRIVATE_PATH", "/data/privacyidea/keys/private.pem")
 # PI_AUDIT_KEY_PUBLIC will be used only when PI_AUDIT_NO_SIGN is True
 PI_AUDIT_KEY_PUBLIC = os.environ.get("PI_AUDIT_KEY_PUBLIC_PATH", "/data/privacyidea/keys/public.pem")
+PI_AUDIT_POOL_SIZE = os.environ.get("PI_AUDIT_POOL_SIZE", 5)
+PI_AUDIT_POOL_RECYCLE = os.environ.get("PI_AUDIT_POOL_RECYCLE", 3600)
+PI_LOGCONFIG= os.environ.get("PI_LOGCONFIG", "/opt/privacyidea/pi-logging.yml")
 PI_LOGFILE = os.environ.get("PI_LOGFILE", "/dev/stdout")
 PI_LOGLEVEL = logging.getLevelName(os.environ.get("PI_LOGLEVEL", 20))
 PI_NODE = os.environ.get("HOSTNAME", "localnode")
