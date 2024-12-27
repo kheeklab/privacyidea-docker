@@ -1,5 +1,5 @@
 ARG BASE_IMAGE_TAG=3.12.7-slim-bullseye
-ARG PI_VERSION=3.10.1
+ARG PI_VERSION=3.10.2
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder
@@ -29,8 +29,8 @@ ENV PI_SKIP_BOOTSTRAP=false \
 COPY prebuildfs /
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates gettext-base tini tree jq libpq5 realmd krb5-user curl && \
-    mkdir -p "$PI_DATA_DIR" "$PI_CFG_DIR" && \
-    chown -R nobody:nogroup "$PI_DATA_DIR" "$PI_CFG_DIR"
+    mkdir -p "$PI_DATA_DIR" "$PI_CFG_DIR" /var/log/privacyidea && \
+    chown -R nobody:nogroup "$PI_DATA_DIR" "$PI_CFG_DIR" /var/log/privacyidea
 USER nobody
 WORKDIR "$PI_HOME"
 COPY --from=builder /opt/privacyidea .

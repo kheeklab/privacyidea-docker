@@ -9,12 +9,16 @@ handlers:
     class: logging.StreamHandler
     level: INFO
     formatter: detail
+  file:
+    # Rollover the logfile at midnight
+    class: logging.handlers.RotatingFileHandler
+    backupCount: 5
+    maxBytes: 1000000
+    formatter: detail
+    level: INFO
+    filename: /var/log/privacyidea/privacyidea.log
 
 loggers:
   privacyidea:
     level: INFO
-    handlers: [console]
-
-root:
-  level: WARNING
-  handlers: [console]
+    handlers: [file]
