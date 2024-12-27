@@ -23,5 +23,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           python_base_image: 3.12.7-slim-bullseye
-          pi_version: '3.10.1'
+          pi_version: '3.10.2'
           is_default_version: true

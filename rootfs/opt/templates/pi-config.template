@@ -16,7 +16,8 @@ if PI_PEPPER is None:
 SUPERUSER_REALM = os.environ.get('PI_SUPERUSER_REALM','administrator').split(',')
 
 SQLALCHEMY_DATABASE_URI = "$SQLALCHEMY_DATABASE_URI"
-SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 3600, "pool_size":10, "pool_timeout": 30, "max_overflow": 20}
+# Update SQLALCHEMY_ENGINE_OPTIONS accordingly to your needs
+# SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 3600, "pool_size":10, "pool_timeout": 30, "max_overflow": 20}
 PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/keys/encfile")
 PI_HSM = os.environ.get("PI_HSM", "default")
 PI_AUDIT_NO_SIGN = os.environ.get("PI_AUDIT_NO_SIGN", "False").lower() == "true"
