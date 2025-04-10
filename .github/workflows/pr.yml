@@ -1,5 +1,8 @@
 name: PR
 on:
+  push:
+    branches:
+      - '3.*'
   pull_request:
     branches:
       - 'main'
@@ -18,6 +21,9 @@ jobs:
       - name: Docker common actions
         uses: ./.github/actions/docker-common
         with:
+          docker_hub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+          docker_hub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64
           push: false
           python_base_image: 3.12.10-slim-bullseye
