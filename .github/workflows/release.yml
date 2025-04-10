@@ -22,6 +22,6 @@ jobs:
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
           platforms: linux/amd64,linux/arm64
           push: true
-          python_base_image: 3.12.9-slim-bullseye
-          pi_version: '3.11'
+          python_base_image: 3.12.10-slim-bullseye
+          pi_version: '3.11.1'
           is_default_version: true
