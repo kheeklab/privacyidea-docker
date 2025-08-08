@@ -18,7 +18,11 @@ function main {
 
     generate_pi_config
     prestart_privacyidea
-    exec /opt/privacyidea/bin/gunicorn -c /opt/privacyidea/gunicorn_conf.py "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
+    if [ -f /etc/privacyidea/server.key -a -f /etc/privacyidea/server.crt ]; then
+        exec /opt/privacyidea/bin/gunicorn --certfile=/etc/privacyidea/server.crt --keyfile=/etc/privacyidea/server.key --bind 0.0.0.0:${PI_SSLPORT:-8443} -c /opt/privacyidea/gunicorn_conf.py "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
+    else
+        exec /opt/privacyidea/bin/gunicorn -c /opt/privacyidea/gunicorn_conf.py "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
+    fi
 }
 
 # Function to generate PrivacyIDEA configuration
@@ -101,6 +105,9 @@ function generate_pi_config {
             envsubst < /opt/templates/pi-config.template > ${PI_CFG_DIR}/pi.cfg
         fi
     fi
+    
+    # Update the log level
+    sed -ie "s/level: .*/level: ${PI_LOGLEVEL}/g" /opt/privacyidea/pi-logging.yml
 }
 
 # Function to perform pre-start tasks for PrivacyIDEA

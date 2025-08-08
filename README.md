@@ -96,6 +96,7 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 | `PI_SUPERUSER_REALM` | The realm, where users are allowed to login as administrators in comma separated value | administrator |
 | `PI_SKIP_BOOTSTRAP` | Set this to true to prevent the container to run setup again | false |
 | `PI_AUTO_UPDATE` | Set this to true to automatically update privacyIDEA. Only effect when `PI_SKIP_BOOTSTRAP` is set to **true** | false |
+| `PI_SSLPORT` | Use https instead of http and listen on this port. To make this work bind mount or copy the private key and the certificate into /etc/privacyidea/server.{key,crt} | 8443 |
 
 > [!WARNING]
 > Be careful and setting `PI_SKIP_BOOTSTRAP` to **true** after first initialization. This will prevent the container to run setup again or your data such as admin credentials, secret keys, etc will be overwritten.
