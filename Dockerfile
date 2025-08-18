@@ -1,11 +1,11 @@
-ARG BASE_IMAGE_TAG=3.12.7-slim-bullseye
-ARG PI_VERSION=3.10.2
+ARG BASE_IMAGE_TAG=3.10.18-slim-bullseye
+ARG PI_VERSION=3.11.4
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder
 ARG PI_HOME
 ARG PI_VERSION
-RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev
+RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev libxslt-dev libxslt-dev
 COPY requirements.txt requirements.txt
 RUN python3 -m venv "$PI_HOME" && . "$PI_HOME/bin/activate" \
     && pip3 install --upgrade pip \
