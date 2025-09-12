@@ -9,7 +9,7 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      piersion:
+      pi_version:
         description: 'PI version tag'
         required: true
 
@@ -27,13 +27,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ github.repository }}
-            ghcr.io/${{ github.repository }}
+            kheeklab/privacyidea
+            ghcr.io/kheeklab/privacyidea
           tags: |
             type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=beta,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
       # Step 3: Set up QEMU for multi-platform builds
       - name: Set up QEMU
