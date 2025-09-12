@@ -5,7 +5,7 @@ services:
     build:
       context: .
       args:
-        PI_VERSION: 3.12
+        PI_VERSION: main
     environment:
       - PI_SECRET_KEY="suppersecretkey"
       - PI_PEPPER="secretworduseforadminencrypt"
