@@ -1,5 +1,5 @@
 ARG BASE_IMAGE_TAG=3.12-slim
-ARG PI_VERSION=latest
+ARG PI_VERSION=main
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder
@@ -8,7 +8,7 @@ ARG PI_VERSION
 RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev libxslt-dev
 COPY requirements.txt requirements.txt
 RUN set -eux; \
-    if [ "$PI_VERSION" = "latest" ]; then \
+    if [ "$PI_VERSION" = "main" ]; then \
     PI_VERSION=$(curl -s https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version'); \
     fi; \
     echo "Using privacyIDEA version: $PI_VERSION"; \

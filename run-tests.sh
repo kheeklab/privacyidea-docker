@@ -12,4 +12,4 @@ echo "PI is ready"
 # Give it another 3 seconds.
 sleep 3;
 
-curl --silent --fail http://pi-app:8080 | grep '<title>PrivacyIDEA</title>'
+curl --silent --fail http://pi-app:8080 | grep '<title idle-disabled="true">pivacyIDEA</title>'
