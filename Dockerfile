@@ -5,7 +5,7 @@ ARG PI_HOME=/opt/privacyidea
 FROM python:$BASE_IMAGE_TAG AS builder
 ARG PI_HOME
 ARG PI_VERSION
-RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev libxslt-dev
+RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev libxslt-dev --no-install-recommends
 COPY requirements.txt requirements.txt
 RUN set -eux; \
     VERSION="$PI_VERSION"; \
