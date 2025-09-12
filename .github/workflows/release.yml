@@ -21,6 +21,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - name: Determine PI version
+        id: pi_version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.pi_version }}" >> $GITHUB_OUTPUT
+          elif [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            echo "version=main" >> $GITHUB_OUTPUT
+
       # Step 2: Extract metadata for Docker
       - name: Docker meta
         id: meta
@@ -33,6 +44,7 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=${{ steps.pi_version.outputs.version }}
 
       # Step 3: Set up QEMU for multi-platform builds
       - name: Set up QEMU
@@ -77,17 +89,6 @@ jobs:
         with:
           sarif_file: hadolint-results.sarif
           category: hadolint-dockerfile
-
-      # Step 7: Determine PIersion
-      - name: Determine PI version
-        id: pi_version
-        run: |
-          if [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          else
-            echo "version=main" >> $GITHUB_OUTPUT
-          fi
 
       # Step 8: Test build (for PRs)
       - name: Debug Build on PR
