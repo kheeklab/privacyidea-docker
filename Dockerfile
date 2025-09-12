@@ -1,19 +1,25 @@
-ARG BASE_IMAGE_TAG=3.10.18-slim-bullseye
-ARG PI_VERSION=3.11.4
+ARG BASE_IMAGE_TAG=3.12-slim
+ARG PI_VERSION=latest
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder
 ARG PI_HOME
 ARG PI_VERSION
-RUN apt-get update && apt-get install -y python3-dev gcc libpq-dev libkrb5-dev libxslt-dev libxslt-dev
+RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev libxslt-dev
 COPY requirements.txt requirements.txt
-RUN python3 -m venv "$PI_HOME" && . "$PI_HOME/bin/activate" \
-    && pip3 install --upgrade pip \
-    && pip3 install wheel \
-    && pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v"$PI_VERSION"/requirements.txt \
-    && pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v"$PI_VERSION"/requirements-kerberos.txt \
-    && pip3 install privacyidea=="$PI_VERSION" \
-    && pip3 install -r requirements.txt
+RUN set -eux; \
+    if [ "$PI_VERSION" = "latest" ]; then \
+    PI_VERSION=$(curl -s https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version'); \
+    fi; \
+    echo "Using privacyIDEA version: $PI_VERSION"; \
+    python3 -m venv "/opt/privacyidea"; \
+    . "/opt/privacyidea/bin/activate"; \
+    pip3 install --upgrade pip wheel; \
+    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements.txt; \
+    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${PI_VERSION}/requirements-kerberos.txt; \
+    pip3 install privacyidea==${PI_VERSION}; \
+    pip3 install -r requirements.txt
+
 
 FROM python:$BASE_IMAGE_TAG
 ARG PI_HOME
