@@ -16,12 +16,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get PI tags (official releases only)
+      - name: Get PI tags
         id: get-pi-tags
         run: |
-          echo "Fetching PI release tags from GitHub API (excluding pre-releases)..."
-          PI_TAGS=$(curl -s -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/privacyidea/privacyidea/releases" \
-            | jq -r '.[] | select(.prerelease == false) | .tag_name')
+          echo "Fetching PI release tags from GitHub API (first page, excluding pre-releases)..."
+          PI_TAGS=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/privacyidea/privacyidea/releases" \
+            | jq -r '.[] | select(.prerelease == false) | .tag_name' 2>/dev/null || true)
           # Convert newlines to spaces
           PI_TAGS_FORMATTED=$(echo "$PI_TAGS" | tr '\n' ' ')
           echo "pi_tags=$PI_TAGS_FORMATTED" >> $GITHUB_ENV
