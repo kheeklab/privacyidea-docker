@@ -71,7 +71,7 @@ jobs:
               -H "Authorization: token $GH_PAT" \
               https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches \
               -d '{
-                "ref": "refs/tags/'"$tag"'",
+                "ref": "'"$tag"'",
                 "inputs": {
                   "pi_version": "'"$tag"'"
                 }

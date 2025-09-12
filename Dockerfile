@@ -12,13 +12,13 @@ RUN set -eux; \
     if [ "$PI_VERSION" = "main" ]; then \
     VERSION=$(curl -s https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version'); \
     fi; \
-    echo "Using privacyIDEA version: $VERSION"; \
+    echo "Using privacyIDEA version: ${VERSION#v}"; \
     python3 -m venv "/opt/privacyidea"; \
     . "/opt/privacyidea/bin/activate"; \
     pip3 install --upgrade pip wheel; \
-    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION}/requirements.txt; \
-    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION}/requirements-kerberos.txt; \
-    pip3 install privacyidea==${VERSION}; \
+    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements.txt; \
+    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements-kerberos.txt; \
+    pip3 install privacyidea==${VERSION#v}; \
     pip3 install -r requirements.txt
 
 
