@@ -1,0 +1,21 @@
+version: '2.1'
+
+services:
+  pi-app:
+    build:
+      context: .
+      args:
+        PI_VERSION: 3.12
+    environment:
+      - PI_SECRET_KEY="suppersecretkey"
+      - PI_PEPPER="secretworduseforadminencrypt"
+      - PI_PAGE_TITLE=pivacyIDEA
+  sut:
+      image: alpine:latest
+      depends_on:
+        - pi-app
+      environment:
+        - SOURCE_BRANCH
+      command: /tmp/run-tests.sh
+      volumes:
+        - "./run-tests.sh:/tmp/run-tests.sh:ro"
