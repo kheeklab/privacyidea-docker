@@ -51,6 +51,7 @@ jobs:
             type=ref,event=tag
             type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             type=raw,value=${{ steps.pi_version.outputs.version }}
+            type=raw,value=${{ steps.pi_version.outputs.version }}-{{date 'YYYYMMDD'}}
 
       # Step 4: Set up QEMU for multi-platform builds
       - name: Set up QEMU
