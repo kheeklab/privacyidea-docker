@@ -128,7 +128,7 @@ All of the use cases can be triggered on container creation when the container f
 ### Key Container Folders
 
 - /mnt/privacyidea
-- /user/local/privacyidea/scripts
+- /usr/local/privacyidea/scripts
 
 The Container Lifecycle and API specifies the scanned subfolders, the phases in which the container scans them, and the actions taken on their files.
 
@@ -189,7 +189,7 @@ After you create a container in an environment, the container entry point execut
 The container entry point scans the following container folders for files and uses those files to configure the container and privacyIDEA and to act on privacyIDEA.
 
 - /mnt/privacyidea
-- /user/local/privacyidea/scripts
+- /usr/local/privacyidea/scripts
 
 The key folders above have subfolders that are designated for specific actions. The subfolders, the actions taken on their files, and associated use cases are listed in lifecycle phase order in the following sections.
 
