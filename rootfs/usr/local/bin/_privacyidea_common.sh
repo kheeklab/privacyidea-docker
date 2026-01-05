@@ -4,7 +4,8 @@ execute_scripts() {
   local script_dir="$1"
   local script_names
 
-  if [[ -d "$script_dir" ]] && script_names=("$script_dir"/*.sh); (( ${#script_names[@]} )); then
+  if [[ -d "$script_dir" ]] && compgen -G "${script_dir}/*.sh" > /dev/null; then
+    script_names=("$script_dir"/*.sh)
     echo "[PrivacyIDEA] Executing scripts in $script_dir:"
 
     for script_path in "${script_names[@]}"; do
