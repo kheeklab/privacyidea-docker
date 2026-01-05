@@ -16,7 +16,7 @@ The docker image is a self-contained Debian with privacyIDEA installed, which wi
 
 ### Registry
 
-The image is stored in bellow registries:
+The image is stored in below registries:
 
 - [Docker Hub](https://hub.docker.com/r/kheeklab/privacyidea)
 - [GitHub Container Registry](https://github.com/kheeklab/privacyidea-docker/pkgs/container/privacyidea)
