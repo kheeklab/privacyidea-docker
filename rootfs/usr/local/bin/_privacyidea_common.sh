@@ -2,9 +2,17 @@
 
 execute_scripts() {
   local script_dir="$1"
-  local script_names
+  local script_names=()
 
-  if [[ -d "$script_dir" ]] && script_names=("$script_dir"/*.sh); (( ${#script_names[@]} )); then
+  if [[ ! -d "$script_dir" ]]; then
+    return 0
+  fi
+
+  shopt -s nullglob
+  script_names=("$script_dir"/*.sh)
+  shopt -u nullglob
+
+  if (( ${#script_names[@]} )); then
     echo "[PrivacyIDEA] Executing scripts in $script_dir:"
 
     for script_path in "${script_names[@]}"; do
