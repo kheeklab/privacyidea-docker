@@ -20,12 +20,21 @@ jobs:
         id: get-pi-tags
         run: |
           echo "Fetching PI release tags from GitHub API (first page, excluding pre-releases)..."
-          PI_TAGS=$(curl -s -H "Accept: application/vnd.github.v3+json" \
+          PI_TAGS=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/privacyidea/privacyidea/releases" \
             | jq -r '.[] | select(.prerelease == false) | .tag_name' 2>/dev/null || true)
           # Convert newlines to spaces
           PI_TAGS_FORMATTED=$(echo "$PI_TAGS" | tr '\n' ' ')
           echo "pi_tags=$PI_TAGS_FORMATTED" >> $GITHUB_ENV
+
+      - name: Get PI versions on PyPI
+        id: get-pi-pypi-versions
+        run: |
+          echo "Fetching privacyIDEA release versions from PyPI..."
+          PYPI_VERSIONS=$(curl -fsSL "https://pypi.org/pypi/privacyIDEA/json" \
+            | jq -r '.releases | keys[]' 2>/dev/null || true)
+          PYPI_VERSIONS_FORMATTED=$(echo "$PYPI_VERSIONS" | tr '\n' ' ')
+          echo "pypi_versions=$PYPI_VERSIONS_FORMATTED" >> $GITHUB_ENV
 
       - name: Get existing tags
         id: get-existing-tags
@@ -42,6 +51,8 @@ jobs:
         run: |
           # Convert existing tags to a pattern for quick matching
           EXISTING_TAGS_PATTERN=" ${{ env.existing_tags }} "
+          # Convert PyPI versions to a pattern for quick matching
+          PYPI_VERSIONS_PATTERN=" ${{ env.pypi_versions }} "
           # Counter for processed tags
           PROCESSED=0
 
@@ -55,6 +66,13 @@ jobs:
             # Check if tag exists
             if [[ "$EXISTING_TAGS_PATTERN" == *" $tag "* ]]; then
               echo "Tag $tag already exists, skipping"
+              continue
+            fi
+
+            # Only trigger when this version is available on PyPI
+            pypi_version="${tag#v}"
+            if [[ "$PYPI_VERSIONS_PATTERN" != *" $pypi_version "* ]]; then
+              echo "Tag $tag is not published on PyPI yet (missing $pypi_version), skipping"
               continue
             fi
 
@@ -89,5 +107,6 @@ jobs:
           echo "# PI Tags Synchronization" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- PI tags found: $(echo "${{ env.pi_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
+          echo "- PyPI versions found: $(echo "${{ env.pypi_versions }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
           echo "- Existing tags: $(echo "${{ env.existing_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
           echo "- New tags created: $(git tag -l | wc -w) - $(echo "${{ env.existing_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
