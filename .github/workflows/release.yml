@@ -13,6 +13,10 @@ on:
         description: 'PI version tag'
         required: true
 
+permissions:
+  contents: write
+  security-events: write
+
 jobs:
   buildx:
     runs-on: ubuntu-latest

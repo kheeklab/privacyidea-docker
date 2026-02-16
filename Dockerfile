@@ -6,11 +6,13 @@ FROM python:$BASE_IMAGE_TAG AS builder
 ARG PI_HOME
 ARG PI_VERSION
 RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev --no-install-recommends
-COPY requirements.txt requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN set -eux; \
     VERSION="$PI_VERSION"; \
     if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then \
-    VERSION=$(curl -fsSL https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version'); \
+    curl -fsSL -o /tmp/privacyidea-pypi.json https://pypi.org/pypi/privacyIDEA/json; \
+    VERSION=$(jq -r '.info.version' /tmp/privacyidea-pypi.json); \
+    rm -f /tmp/privacyidea-pypi.json; \
     fi; \
     test -n "$VERSION"; \
     echo "Using privacyIDEA version: ${VERSION#v}"; \
@@ -20,7 +22,7 @@ RUN set -eux; \
     pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements.txt; \
     pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements-kerberos.txt; \
     pip3 install privacyidea==${VERSION#v}; \
-    pip3 install -r requirements.txt
+    pip3 install -r /tmp/requirements.txt
 
 
 FROM python:$BASE_IMAGE_TAG
