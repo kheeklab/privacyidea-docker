@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # This script sets up and starts PrivacyIDEA within a Docker container.
 

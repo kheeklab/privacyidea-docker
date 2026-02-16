@@ -4,13 +4,81 @@ metadataTest:
   envVars:
     - key: PI_SKIP_BOOTSTRAP
       value: "false"
+    - key: PI_AUTO_UPDATE
+      value: "false"
     - key: PI_DB_VENDOR
       value: "sqlite"
+    - key: PI_DATA_DIR
+      value: "/data/privacyidea"
+    - key: PI_CFG_DIR
+      value: "/etc/privacyidea"
+    - key: PI_CFG_FILE
+      value: "pi.cfg"
+  user: "nobody"
   workdir: "/opt/privacyidea"
   entrypoint: ["/usr/bin/tini", "--", "/usr/local/bin/privacyidea_entrypoint.sh"]
   exposedPorts: ["8080"]
+  volumes: ["/data/privacyidea"]
 
 fileExistenceTests:
-- name: 'Template directory'
-  path: '/opt/templates'
-  shouldExist: true
+  - name: "Template directory"
+    path: "/opt/templates"
+    shouldExist: true
+  - name: "PI config template"
+    path: "/opt/templates/pi-config.template"
+    shouldExist: true
+  - name: "Entrypoint script"
+    path: "/usr/local/bin/privacyidea_entrypoint.sh"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  - name: "Configure script"
+    path: "/usr/local/bin/configure_privacyidea.sh"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  - name: "Common functions script"
+    path: "/usr/local/bin/_privacyidea_common.sh"
+    shouldExist: true
+    permissions: "-rwxr-xr-x"
+  - name: "Gunicorn binary in venv"
+    path: "/opt/privacyidea/bin/gunicorn"
+    shouldExist: true
+  - name: "pi-manage binary in venv"
+    path: "/opt/privacyidea/bin/pi-manage"
+    shouldExist: true
+  - name: "Runtime config directory"
+    path: "/etc/privacyidea"
+    shouldExist: true
+  - name: "Runtime data directory"
+    path: "/data/privacyidea"
+    shouldExist: true
+  - name: "Runtime log directory"
+    path: "/var/log/privacyidea"
+    shouldExist: true
+
+commandTests:
+  - name: "Entrypoint script has valid bash syntax"
+    command: "bash"
+    args: ["-n", "/usr/local/bin/privacyidea_entrypoint.sh"]
+    exitCode: 0
+  - name: "Configure script has valid bash syntax"
+    command: "bash"
+    args: ["-n", "/usr/local/bin/configure_privacyidea.sh"]
+    exitCode: 0
+  - name: "Common script has valid bash syntax"
+    command: "bash"
+    args: ["-n", "/usr/local/bin/_privacyidea_common.sh"]
+    exitCode: 0
+  - name: "Gunicorn binary is executable"
+    command: "bash"
+    args: ["-lc", "test -x /opt/privacyidea/bin/gunicorn"]
+    exitCode: 0
+  - name: "pi-manage binary is executable"
+    command: "bash"
+    args: ["-lc", "test -x /opt/privacyidea/bin/pi-manage"]
+    exitCode: 0
+  - name: "Runtime user can write PI data directory"
+    command: "bash"
+    args:
+      - "-lc"
+      - "touch /data/privacyidea/.structure-test-write && rm -f /data/privacyidea/.structure-test-write"
+    exitCode: 0

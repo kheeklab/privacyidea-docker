@@ -78,7 +78,7 @@ function generate_pi_config {
                     export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST}&port=${PI_DB_PORT:-5432}"
                 else
                     check_and_clean_vars "PI_DB_ARGS"
-                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST}&port=${PI_DB_PORT:-${PI_DB_HOST//[!,]/}}&${PI_DB_ARGS//,/\&}"
+                    export SQLALCHEMY_DATABASE_URI="${PI_DB_VENDOR}+psycopg2://${PI_DB_USER}:${encoded_password}@/${PI_DB_NAME}?host=${PI_DB_HOST}&port=${PI_DB_PORT:-5432}&${PI_DB_ARGS//,/\&}"
                 fi
                 ;;
 
@@ -94,7 +94,7 @@ function generate_pi_config {
     fi
 
     # Check if the configuration file already exists
-    if [ ! -f ${PI_CFG_DIR}/pi.cfg ]; then
+    if [ ! -f "${PI_CFG_DIR}/pi.cfg" ]; then
         # Check if SQLALCHEMY_DATABASE_URI is defined
         if [ -z "$SQLALCHEMY_DATABASE_URI" ]; then
             echo ""
@@ -102,12 +102,12 @@ function generate_pi_config {
             echo ""
         else
             # Use the pi-config.template file as a template and substitute the necessary variables
-            envsubst < /opt/templates/pi-config.template > ${PI_CFG_DIR}/pi.cfg
+            envsubst < /opt/templates/pi-config.template > "${PI_CFG_DIR}/pi.cfg"
         fi
     fi
     
     # Update the log level
-    sed -ie "s/level: .*/level: ${PI_LOGLEVEL}/g" /opt/privacyidea/pi-logging.yml
+    sed -i -e "s/level: .*/level: ${PI_LOGLEVEL}/g" /opt/privacyidea/pi-logging.yml
 }
 
 # Function to perform pre-start tasks for PrivacyIDEA
@@ -151,15 +151,15 @@ function prestart_privacyidea {
         pi-manage setup create_tables
 
         # Create keys directory if not exists
-        if [ ! -d ${PI_DATA_DIR}/keys ]; then
+        if [ ! -d "${PI_DATA_DIR}/keys" ]; then
             echo ""
             echo "[INFO] Creating keys directory..."
             echo ""
-            mkdir -p ${PI_DATA_DIR}/keys
+            mkdir -p "${PI_DATA_DIR}/keys"
         fi
 
         # Create encryption key file if not exists
-        if [ ! -f ${PI_DATA_DIR}/keys/encfile ]; then
+        if [ ! -f "${PI_DATA_DIR}/keys/encfile" ]; then
             echo ""
             echo "[INFO] Encryption key file not found, creating a new one..."
             echo ""
@@ -167,7 +167,7 @@ function prestart_privacyidea {
         fi
 
         # Create audit keys if not exists
-        if [ ! -f ${PI_DATA_DIR}/keys/private.pem ]; then
+        if [ ! -f "${PI_DATA_DIR}/keys/private.pem" ]; then
             echo ""
             echo "[INFO] Creating audit keys..."
             echo ""
@@ -176,10 +176,17 @@ function prestart_privacyidea {
 
         # Create admin user if not specified through environment variables
         if [ -z "${PI_ADMIN_USER}" ] || [ -z "${PI_ADMIN_PASSWORD}" ]; then
-            echo ""
-            echo "[INFO] Creating default admin user. [WARNING]: This is not recommended for production environments. Please set PI_ADMIN_USER and PI_ADMIN_PASSWORD environment variables to specify the admin user in production."
-            echo ""
-            pi-manage admin add admin --password privacyidea
+            if [[ "${SQLALCHEMY_DATABASE_URI}" == sqlite:* ]] || [ "${PI_DB_VENDOR}" = "sqlite" ]; then
+                echo ""
+                echo "[INFO] Creating default admin user for local SQLite setup."
+                echo ""
+                pi-manage admin add admin --password privacyidea
+            else
+                echo ""
+                echo "[ERROR] PI_ADMIN_USER and PI_ADMIN_PASSWORD must be set for non-SQLite databases."
+                echo ""
+                exit 1
+            fi
         else
             echo ""
             echo "[INFO] Creating admin user from specified environment variables..."
