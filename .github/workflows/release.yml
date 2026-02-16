@@ -96,18 +96,85 @@ jobs:
           sarif_file: hadolint-results.sarif
           category: hadolint-dockerfile
 
-      # Step 8: Test build (for PRs)
-      - name: Debug Build on PR
-        if: github.event_name == 'pull_request'
-        run: docker buildx build --load .
+      # Step 8: Build local image for tests
+      - name: Build test image
+        run: docker build --build-arg PI_VERSION=${{ steps.pi_version.outputs.version }} -t privacyidea:test .
 
-      # Step 9: Test the built image
-      - name: Test
+      # Step 9: Install container-structure-test
+      - name: Install container-structure-test
         run: |
+          CST_VERSION=1.22.1
+          curl -fsSL -o /tmp/container-structure-test \
+            "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v${CST_VERSION}/container-structure-test-linux-amd64"
+          chmod +x /tmp/container-structure-test
+          sudo mv /tmp/container-structure-test /usr/local/bin/container-structure-test
+          container-structure-test version
+
+      # Step 10: Run container structure tests
+      - name: Container structure test
+        id: structure_test
+        run: |
+          set +e
+          container-structure-test test --image privacyidea:test --config structure-tests.yaml | tee structure-test.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "result=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=failed" >> "$GITHUB_OUTPUT"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      # Step 11: Run integration tests
+      - name: Integration test
+        id: integration_test
+        run: |
+          set +e
           docker compose version
           docker compose --file docker-compose-test.yml build --build-arg PI_VERSION=${{ steps.pi_version.outputs.version }}
-          docker compose --file docker-compose-test.yml up --exit-code-from sut --timeout 10
-      # Step 10: Build and Push to both registries
+          docker compose --file docker-compose-test.yml up --exit-code-from sut --timeout 10 | tee compose-test.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "result=passed" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=failed" >> "$GITHUB_OUTPUT"
+          fi
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+
+      # Step 12: Add test results to job summary
+      - name: Test summary
+        if: always()
+        run: |
+          structure_passed=$(grep -c -- "--- PASS" structure-test.log 2>/dev/null || true)
+          structure_failed=$(grep -c -- "--- FAIL" structure-test.log 2>/dev/null || true)
+
+          {
+            echo "## Test Results"
+            echo ""
+            echo "- Container structure test: ${{ steps.structure_test.outputs.result }}"
+            echo "  - Passed checks: ${structure_passed}"
+            echo "  - Failed checks: ${structure_failed}"
+            echo "- Compose integration test: ${{ steps.integration_test.outputs.result }}"
+            echo ""
+            echo "- Structure test exit code: ${{ steps.structure_test.outputs.exit_code }}"
+            echo "- Integration test exit code: ${{ steps.integration_test.outputs.exit_code }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Step 13: Enforce test pass
+      - name: Enforce structure test success
+        if: steps.structure_test.outputs.exit_code != '0'
+        run: |
+          echo "Container structure test failed"
+          exit 1
+
+      - name: Enforce integration test success
+        if: steps.integration_test.outputs.exit_code != '0'
+        run: |
+          echo "Integration test failed"
+          exit 1
+
+      # Step 14: Build and Push to both registries
       - name: Build and push
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v6
@@ -121,7 +188,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Step 11: Run Trivy vulnerability scanner
+      # Step 15: Run Trivy vulnerability scanner
       - name: Run Trivy vulnerability scanner
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
