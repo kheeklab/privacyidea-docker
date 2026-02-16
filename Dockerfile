@@ -1,17 +1,18 @@
 ARG BASE_IMAGE_TAG=3.12-slim
-ARG PI_VERSION
+ARG PI_VERSION=main
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder
 ARG PI_HOME
 ARG PI_VERSION
-RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev libxslt-dev --no-install-recommends
+RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev --no-install-recommends
 COPY requirements.txt requirements.txt
 RUN set -eux; \
     VERSION="$PI_VERSION"; \
-    if [ "$PI_VERSION" = "main" ]; then \
-    VERSION=$(curl -s https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version'); \
+    if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then \
+    VERSION=$(curl -fsSL https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version'); \
     fi; \
+    test -n "$VERSION"; \
     echo "Using privacyIDEA version: ${VERSION#v}"; \
     python3 -m venv "/opt/privacyidea"; \
     . "/opt/privacyidea/bin/activate"; \
@@ -35,7 +36,7 @@ ENV PI_SKIP_BOOTSTRAP=false \
 
 COPY prebuildfs /
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates gettext-base tini tree jq libpq5 realmd krb5-user curl && \
+RUN install_packages ca-certificates gettext-base tini tree jq libpq5 realmd krb5-user && \
     mkdir -p "$PI_DATA_DIR" "$PI_CFG_DIR" /var/log/privacyidea && \
     chown -R nobody:nogroup "$PI_DATA_DIR" "$PI_CFG_DIR" /var/log/privacyidea
 USER nobody
