@@ -4,26 +4,17 @@ set -e
 # Source common functions and variables
 source /usr/local/bin/_privacyidea_common.sh
 
-# Main function to start PrivacyIDEA
-function main {
-    echo ""
-    echo "             _                    _______  _______ "
-    echo "   ___  ____(_)  _____ _______ __/  _/ _ \/ __/ _ |"
-    echo '  / _ \/ __/ / |/ / _ `/ __/ // // // // / _// __ |'
-    echo " / .__/_/ /_/|___/\_,_/\__/\_, /___/____/___/_/ |_|"
-    echo "/_/                       /___/                    "
-    echo ""
-    echo "[PrivacyIDEA] Starting ${PrivacyIDEA}. To stop the container with CTRL-C, run this container with the option \"-it\"."
-    echo ""
+# This script configures PrivacyIDEA: generates config, creates DB tables,
+# encryption keys, audit keys, and admin user. Returns to entrypoint which
+# then exec's into gunicorn.
 
-    generate_pi_config
-    prestart_privacyidea
-    if [ -f /etc/privacyidea/server.key -a -f /etc/privacyidea/server.crt ]; then
-        exec /opt/privacyidea/bin/gunicorn --certfile=/etc/privacyidea/server.crt --keyfile=/etc/privacyidea/server.key --bind 0.0.0.0:${PI_SSLPORT:-8443} -c /opt/privacyidea/gunicorn_conf.py "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
-    else
-        exec /opt/privacyidea/bin/gunicorn -c /opt/privacyidea/gunicorn_conf.py "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
-    fi
-}
+echo ""
+echo "             _                    _______  _______ "
+echo "   ___  ____(_)  _____ _______ __/  _/ _ \/ __/ _ |"
+echo '  / _ \/ __/ / |/ / _ `/ __/ // // // // / _// __ |'
+echo " / .__/_/ /_/|___/\_,_/\__/\_, /___/____/___/_/ |_|"
+echo "/_/                       /___/                    "
+echo ""
 
 # Function to generate PrivacyIDEA configuration
 function generate_pi_config {
@@ -35,6 +26,9 @@ function generate_pi_config {
         check_and_clean_vars "PI_DB_VENDOR"
 
         # URL encode the password
+        # TODO: Fix double-encoding bug - if password contains '%', jq encodes to %25,
+        # and if it already contains %25 (URL-encoded %), it becomes %2525. This needs
+        # proper URL encoding that handles already-encoded characters.
         encoded_password=$(printf "%s" "$PI_DB_PASSWORD" | jq -s -R -r @uri)
     }
 
@@ -86,6 +80,16 @@ function generate_pi_config {
                 echo ""
                 echo "[WARNING] PI_DB_VENDOR environment variable is not set. Using default SQLite..."
                 echo ""
+
+                # Validate PI_DATA_DIR exists and is writable before using SQLite
+                if [ ! -d "$PI_DATA_DIR" ]; then
+                    echo "[ERROR] PI_DATA_DIR ($PI_DATA_DIR) does not exist or is not a directory."
+                    exit 1
+                fi
+                if [ ! -w "$PI_DATA_DIR" ]; then
+                    echo "[ERROR] PI_DATA_DIR ($PI_DATA_DIR) is not writable."
+                    exit 1
+                fi
 
                 # Define the SQLAlchemy database URI for SQLite
                 export SQLALCHEMY_DATABASE_URI=sqlite:////${PI_DATA_DIR}/privacyidea.db
@@ -158,10 +162,15 @@ function prestart_privacyidea {
             mkdir -p "${PI_DATA_DIR}/keys"
         fi
 
-        # Create encryption key file if not exists
+        # Create encryption key file if not exists or invalid
         if [ ! -f "${PI_DATA_DIR}/keys/encfile" ]; then
             echo ""
             echo "[INFO] Encryption key file not found, creating a new one..."
+            echo ""
+            pi-manage setup create_enckey
+        elif [ ! -s "${PI_DATA_DIR}/keys/encfile" ]; then
+            echo ""
+            echo "[WARNING] Encryption key file is empty, recreating..."
             echo ""
             pi-manage setup create_enckey
         fi
@@ -201,9 +210,14 @@ function prestart_privacyidea {
 
     if [ "${PI_SKIP_BOOTSTRAP}" = true ] && [ "${PI_AUTO_UPDATE}" = true ] ; then
         echo "Auto updating privacyIDEA..."
-        privacyidea-schema-upgrade /opt/privacyidea/lib/privacyidea/migrations
+        if ! privacyidea-schema-upgrade /opt/privacyidea/lib/privacyidea/migrations; then
+            echo "[ERROR] Schema upgrade failed. Check database connectivity and try again."
+            exit 1
+        fi
         echo "privacyIDEA successfully updated."
     fi
 }
 
-main
+# Run configuration and setup
+generate_pi_config
+prestart_privacyidea

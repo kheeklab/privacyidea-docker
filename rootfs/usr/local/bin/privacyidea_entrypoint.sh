@@ -26,16 +26,28 @@ function main {
     # Execute any pre-startup scripts.
     execute_scripts /usr/local/privacyidea/scripts/pre-startup
 
-    # Start PrivacyIDEA.
-    start_privacyidea
-
-    # Execute any post-shutdown scripts.
-    execute_scripts /usr/local/privacyidea/scripts/post-shutdown
-}
-
-# Define the function to start PrivacyIDEA.
-function start_privacyidea {
+    # Configure and start PrivacyIDEA.
+    # Source configure_privacyidea.sh which sets up config, DB, keys, and admin.
     . configure_privacyidea.sh
+
+    echo "[PrivacyIDEA] Starting privacyIDEA. To stop the container with CTRL-C, run this container with the option \"-it\"."
+    echo ""
+
+    # After configure_privacyidea.sh returns, we exec into gunicorn.
+    # This replaces the shell with gunicorn as a direct child of tini (PID 1),
+    # so Docker's SIGTERM is received directly by gunicorn, enabling graceful shutdown.
+    if [ -f /etc/privacyidea/server.key -a -f /etc/privacyidea/server.crt ]; then
+        exec /opt/privacyidea/bin/gunicorn \
+            --certfile=/etc/privacyidea/server.crt \
+            --keyfile=/etc/privacyidea/server.key \
+            --bind 0.0.0.0:${PI_SSLPORT:-8443} \
+            -c /opt/privacyidea/gunicorn_conf.py \
+            "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
+    else
+        exec /opt/privacyidea/bin/gunicorn \
+            -c /opt/privacyidea/gunicorn_conf.py \
+            "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
+    fi
 }
 
 # Call the main function.
