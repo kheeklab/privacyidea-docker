@@ -12,7 +12,7 @@ jobs:
       contents: write # Needed to create and push tags
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -93,9 +93,13 @@ jobs:
           fi
 
           # Write results to GITHUB_OUTPUT for the summary step
-          # Format tags as JSON array
-          TAGS_JSON=$(printf '%s\n' "${TAGS_TO_CREATE[@]}" | jq -R . | jq -s .)
-          echo "tags_created=${TAGS_JSON}" >> $GITHUB_OUTPUT
+          # Format tags as JSON array - use jq -R to read raw strings, then -s to collect into array
+          if [[ ${#TAGS_TO_CREATE[@]} -gt 0 ]]; then
+            TAGS_JSON=$(printf '%s\n' "${TAGS_TO_CREATE[@]}" | jq -R . | jq -s .)
+          else
+            TAGS_JSON='[]'
+          fi
+          echo "tags_created_json=${TAGS_JSON}" >> $GITHUB_OUTPUT
           echo "created_count=${#TAGS_TO_CREATE[@]}" >> $GITHUB_OUTPUT
           echo "skipped_existing=$SKIPPED_EXISTING" >> $GITHUB_OUTPUT
           echo "skipped_not_on_pypi=$SKIPPED_NOT_ON_PYPI" >> $GITHUB_OUTPUT
@@ -109,13 +113,13 @@ jobs:
           CREATED_COUNT=${{ steps.process_tags.outputs.created_count }}
           SKIPPED_EXISTING=${{ steps.process_tags.outputs.skipped_existing }}
           SKIPPED_NOT_ON_PYPI=${{ steps.process_tags.outputs.skipped_not_on_pypi }}
-          TAGS_CREATED_JSON='${{ steps.process_tags.outputs.tags_created }}'
+          TAGS_CREATED_JSON="${{ steps.process_tags.outputs.tags_created_json }}"
 
           if [[ "$CREATED_COUNT" -gt 0 ]]; then
             echo "### 🎉 New Tags Created" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "$TAGS_CREATED_JSON" | jq -r '.[]' | while read tag; do
+            echo "$TAGS_CREATED_JSON" | jq -r '.[]' | while read -r tag; do
               echo "  • $tag → [Build workflow](https://github.com/${{ github.repository }}/actions?query=workflow%3Arelease+tag%3A$tag)" >> $GITHUB_STEP_SUMMARY
             done
             echo '```' >> $GITHUB_STEP_SUMMARY

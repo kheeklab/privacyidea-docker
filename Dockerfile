@@ -38,7 +38,7 @@ ENV PI_SKIP_BOOTSTRAP=false \
 
 COPY prebuildfs /
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN install_packages ca-certificates gettext-base tini tree jq libpq5 realmd krb5-user && \
+RUN install_packages ca-certificates gettext-base tini tree jq libpq5 && \
     mkdir -p "$PI_DATA_DIR" "$PI_CFG_DIR" /var/log/privacyidea && \
     chown -R nobody:nogroup "$PI_DATA_DIR" "$PI_CFG_DIR" /var/log/privacyidea
 USER nobody
