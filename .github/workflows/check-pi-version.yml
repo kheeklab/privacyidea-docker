@@ -46,15 +46,17 @@ jobs:
           echo "existing_tags=$EXISTING_TAGS_FORMATTED" >> $GITHUB_ENV
 
       - name: Process missing tags
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
+        id: process_tags
         run: |
           # Convert existing tags to a pattern for quick matching
           EXISTING_TAGS_PATTERN=" ${{ env.existing_tags }} "
           # Convert PyPI versions to a pattern for quick matching
           PYPI_VERSIONS_PATTERN=" ${{ env.pypi_versions }} "
-          # Counter for processed tags
-          PROCESSED=0
+
+          # Collect tags to create
+          TAGS_TO_CREATE=()
+          SKIPPED_EXISTING=0
+          SKIPPED_NOT_ON_PYPI=0
 
           # Process each PI tag
           for tag in ${{ env.pi_tags }}; do
@@ -65,48 +67,75 @@ jobs:
 
             # Check if tag exists
             if [[ "$EXISTING_TAGS_PATTERN" == *" $tag "* ]]; then
-              echo "Tag $tag already exists, skipping"
+              ((SKIPPED_EXISTING++)) || true
               continue
             fi
 
             # Only trigger when this version is available on PyPI
             pypi_version="${tag#v}"
             if [[ "$PYPI_VERSIONS_PATTERN" != *" $pypi_version "* ]]; then
-              echo "Tag $tag is not published on PyPI yet (missing $pypi_version), skipping"
+              ((SKIPPED_NOT_ON_PYPI++)) || true
               continue
             fi
 
-            # Create and push tag (only need to do this once)
-            echo "Creating new tag: $tag"
-
-            git tag "$tag"
-            git push origin "$tag"
-
-            # Trigger build workflow
-            echo "Triggering build for tag $tag"
-            curl -X POST \
-              -H "Accept: application/vnd.github.v3+json" \
-              -H "Authorization: token $GH_PAT" \
-              https://api.github.com/repos/${{ github.repository }}/actions/workflows/release.yml/dispatches \
-              -d '{
-                "ref": "'"$tag"'",
-                "inputs": {
-                  "pi_version": "'"$tag"'"
-                }
-              }'
-
-            # Count processed tag
-            PROCESSED=$((PROCESSED+1))
+            TAGS_TO_CREATE+=("$tag")
           done
 
-          echo "Process completed. Created $PROCESSED new tags."
-          echo "The buildx workflow will be automatically triggered for these tags."
+          # Create all tags locally first
+          for tag in "${TAGS_TO_CREATE[@]}"; do
+            git tag "$tag"
+          done
+
+          # Push all tags at once - this triggers release.yml via push: tags: 'v*'
+          if [[ ${#TAGS_TO_CREATE[@]} -gt 0 ]]; then
+            echo "Pushing ${#TAGS_TO_CREATE[@]} tags..."
+            git push origin "${TAGS_TO_CREATE[@]}"
+          fi
+
+          # Write results to GITHUB_OUTPUT for the summary step
+          # Format tags as JSON array
+          TAGS_JSON=$(printf '%s\n' "${TAGS_TO_CREATE[@]}" | jq -R . | jq -s .)
+          echo "tags_created=${TAGS_JSON}" >> $GITHUB_OUTPUT
+          echo "created_count=${#TAGS_TO_CREATE[@]}" >> $GITHUB_OUTPUT
+          echo "skipped_existing=$SKIPPED_EXISTING" >> $GITHUB_OUTPUT
+          echo "skipped_not_on_pypi=$SKIPPED_NOT_ON_PYPI" >> $GITHUB_OUTPUT
 
       - name: Summary
+        if: always()
         run: |
-          echo "# PI Tags Synchronization" >> $GITHUB_STEP_SUMMARY
+          echo "## PI Tag Sync Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- PI tags found: $(echo "${{ env.pi_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
-          echo "- PyPI versions found: $(echo "${{ env.pypi_versions }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
-          echo "- Existing tags: $(echo "${{ env.existing_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
-          echo "- New tags created: $(git tag -l | wc -w) - $(echo "${{ env.existing_tags }}" | wc -w)" >> $GITHUB_STEP_SUMMARY
+
+          CREATED_COUNT=${{ steps.process_tags.outputs.created_count }}
+          SKIPPED_EXISTING=${{ steps.process_tags.outputs.skipped_existing }}
+          SKIPPED_NOT_ON_PYPI=${{ steps.process_tags.outputs.skipped_not_on_pypi }}
+          TAGS_CREATED_JSON='${{ steps.process_tags.outputs.tags_created }}'
+
+          if [[ "$CREATED_COUNT" -gt 0 ]]; then
+            echo "### 🎉 New Tags Created" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$TAGS_CREATED_JSON" | jq -r '.[]' | while read tag; do
+              echo "  • $tag → [Build workflow](https://github.com/${{ github.repository }}/actions?query=workflow%3Arelease+tag%3A$tag)" >> $GITHUB_STEP_SUMMARY
+            done
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Triggered \`release.yml\` builds for $CREATED_COUNT new tag(s)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✅ No New Tags" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All available privacyIDEA versions already have corresponding tags." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Tags created | $CREATED_COUNT |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏭️  Skipped (already exist) | $SKIPPED_EXISTING |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏸️  Skipped (not on PyPI) | $SKIPPED_NOT_ON_PYPI |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Last synced: \`$(date -u +"%Y-%m-%d %H:%M:%S UTC")\`" >> $GITHUB_STEP_SUMMARY
