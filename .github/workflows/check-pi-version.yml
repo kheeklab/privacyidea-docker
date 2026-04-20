@@ -93,9 +93,10 @@ jobs:
             git push origin "${TAGS_TO_CREATE[@]}"
 
             # Explicitly trigger release.yml for each new tag
+            export GH_TOKEN="$GITHUB_TOKEN"
             for tag in "${TAGS_TO_CREATE[@]}"; do
               echo "Triggering release.yml for ${tag}..."
-              GH_TOKEN="$GITHUB_TOKEN" gh workflow run release.yml -f pi_version="${tag}" --repo "$GITHUB_REPOSITORY" || true
+              gh workflow run release.yml -f pi_version="${tag}" --repo "$GITHUB_REPOSITORY" || true
             done
           fi
 
