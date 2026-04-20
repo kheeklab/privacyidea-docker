@@ -93,9 +93,10 @@ jobs:
           fi
 
           # Write results to GITHUB_OUTPUT for the summary step
-          # Format tags as JSON array using jq -s (collect lines into array)
+          # Build JSON array by constructing it directly
           if [[ ${#TAGS_TO_CREATE[@]} -gt 0 ]]; then
-            TAGS_JSON=$(printf '%s\n' "${TAGS_TO_CREATE[@]}" | jq -s .)
+            JSON_PART=$(printf ', "%s"' "${TAGS_TO_CREATE[@]}")
+            TAGS_JSON="[${JSON_PART:1}]"
           else
             TAGS_JSON='[]'
           fi
