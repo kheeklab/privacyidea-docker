@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write # Needed to create and push tags
+      actions: write  # Needed to trigger workflow dispatches
 
     steps:
       - uses: actions/checkout@v6
