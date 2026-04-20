@@ -87,9 +87,16 @@ jobs:
           done
 
           # Push all tags at once - this triggers release.yml via push: tags: 'v*'
+          # But for reliability, also explicitly trigger the release workflow
           if [[ ${#TAGS_TO_CREATE[@]} -gt 0 ]]; then
             echo "Pushing ${#TAGS_TO_CREATE[@]} tags..."
             git push origin "${TAGS_TO_CREATE[@]}"
+
+            # Explicitly trigger release.yml for each new tag
+            for tag in "${TAGS_TO_CREATE[@]}"; do
+              echo "Triggering release.yml for ${tag}..."
+              gh workflow run release.yml -f pi_version="${tag}" --repo "$GITHUB_REPOSITORY" || true
+            done
           fi
 
           # Write results to GITHUB_OUTPUT for the summary step
