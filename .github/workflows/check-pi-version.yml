@@ -47,6 +47,8 @@ jobs:
 
       - name: Process missing tags
         id: process_tags
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Convert existing tags to a pattern for quick matching
           EXISTING_TAGS_PATTERN=" ${{ env.existing_tags }} "
@@ -93,7 +95,6 @@ jobs:
             git push origin "${TAGS_TO_CREATE[@]}"
 
             # Explicitly trigger release.yml for each new tag
-            export GH_TOKEN="$GITHUB_TOKEN"
             for tag in "${TAGS_TO_CREATE[@]}"; do
               echo "Triggering release.yml for ${tag}..."
               gh workflow run release.yml -f pi_version="${tag}" --repo "$GITHUB_REPOSITORY" || true
