@@ -210,7 +210,7 @@ function prestart_privacyidea {
 
     if [ "${PI_SKIP_BOOTSTRAP}" = true ] && [ "${PI_AUTO_UPDATE}" = true ] ; then
         echo "Auto updating privacyIDEA..."
-        if ! privacyidea-schema-upgrade /opt/privacyidea/lib/privacyidea/migrations; then
+        if ! privacyidea-schema-upgrade -d /opt/privacyidea/lib/privacyidea/migrations; then
             echo "[ERROR] Schema upgrade failed. Check database connectivity and try again."
             exit 1
         fi
