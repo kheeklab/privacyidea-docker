@@ -24,7 +24,7 @@ jobs:
     steps:
       # Step 1: Checkout the code
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v6
 
       # Step 2: Determine and resolve PI version
       - name: Determine PI version
