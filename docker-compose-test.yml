@@ -1,5 +1,6 @@
 services:
   pi-app:
+    image: ${PI_IMAGE:-privacyidea:test}
     build:
       context: .
       args:
@@ -8,6 +9,7 @@ services:
       - PI_SECRET_KEY="suppersecretkey"
       - PI_PEPPER="secretworduseforadminencrypt"
       - PI_PAGE_TITLE=pivacyIDEA
+      - PI_BASE_URL=http://localhost:8080
   sut:
       image: alpine:latest
       depends_on:

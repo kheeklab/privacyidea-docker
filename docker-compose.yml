@@ -28,6 +28,7 @@ services:
       - PI_PAGE_TITLE=pivacyIDEA
       - PI_SUPERUSER_REALM="administrator,api"
       - PI_DB_ARGS="ssl_check_hostname=false"
+      - PI_BASE_URL=http://localhost:8080
     depends_on:
       - pi-db
   wp-db:

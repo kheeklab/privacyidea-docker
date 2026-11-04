@@ -174,8 +174,7 @@ jobs:
         run: |
           set +e
           docker compose version
-          docker compose --file docker-compose-test.yml build --build-arg PI_VERSION=${{ steps.pi_version.outputs.version }}
-          docker compose --file docker-compose-test.yml up --exit-code-from sut --timeout 120 | tee compose-test.log
+          docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120 | tee compose-test.log
           status=${PIPESTATUS[0]}
           docker compose --file docker-compose-test.yml down -v || true
           set -e

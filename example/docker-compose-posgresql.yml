@@ -24,5 +24,6 @@ services:
       - PI_ADMIN_PASSWORD=privacyidea
       - PI_PEPPER=secretworduseforadminencrypt
       - PI_PAGE_TITLE=pivacyIDEA
+      - PI_BASE_URL=http://localhost:8080
     depends_on:
       - postgresql
