@@ -1,4 +1,4 @@
-ARG BASE_IMAGE_TAG=3.12-slim
+ARG BASE_IMAGE_TAG=3.14-slim
 ARG PI_VERSION=main
 ARG PI_HOME=/opt/privacyidea
 

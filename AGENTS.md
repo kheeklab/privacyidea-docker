@@ -4,7 +4,7 @@ Commands and facts in this file were verified against the files named here; when
 
 ## What this repo is
 
-A Docker image that packages privacyIDEA (installed from PyPI) on `python:3.12-slim`, targeting privacyIDEA 3.14 and newer (upstream removed the separate kerberos requirements file in 3.14, so none are installed). The Dockerfile (build) creates a Python virtualenv at `/opt/privacyidea` in a builder stage, then the runtime stage copies it, adds `tini`, and runs as the non-root user `nobody` with gunicorn as the WSGI server (Dockerfile:28–50). Configuration is env-var-only: `configure_privacyidea.sh` builds `pi.cfg` from `rootfs/opt/templates/pi-config.template` via `envsubst`, then gunicorn is `exec`'d as a direct child of tini so it receives Docker's SIGTERM for graceful shutdown.
+A Docker image that packages privacyIDEA (installed from PyPI) on `python:3.14-slim`, targeting privacyIDEA 3.14 and newer (upstream removed the separate kerberos requirements file in 3.14, so none are installed). The Dockerfile (build) creates a Python virtualenv at `/opt/privacyidea` in a builder stage, then the runtime stage copies it, adds `tini`, and runs as the non-root user `nobody` with gunicorn as the WSGI server (Dockerfile:28–50). Configuration is env-var-only: `configure_privacyidea.sh` builds `pi.cfg` from `rootfs/opt/templates/pi-config.template` via `envsubst`, then gunicorn is `exec`'d as a direct child of tini so it receives Docker's SIGTERM for graceful shutdown.
 
 ## Commands that matter
 
@@ -41,7 +41,7 @@ docker-compose-test.yml    test stack: pi-app (build with PI_VERSION=main) + sut
 Makefile                   build/push/run/test/cleanup/help targets
 requirements.txt           psycopg2==2.9.10, gunicorn==23.0.0 (added to the venv)
 structure-tests.yaml       schemaVersion 2.0.0 (CI runs container-structure-test v1.22.1): metadata (env defaults, user nobody, workdir, entrypoint, port 8080, volume), file existence/permissions, bash -n syntax checks, logging/audit template assertions
-run-tests.sh               integration check: waits for pi-app:8080, asserts page title 'pivacyIDEA'
+run-tests.sh               integration check: waits for pi-app:8080, checks /healthz/readyz HTTP 200 and status "ready", then follows / redirect to /app/v2/ and checks privacyIDEA page content
 tests/                     test-db-uri-encoding.sh: PI_DB_PASSWORD round-trips through one jq @uri encoding
 README.md                  user-facing docs (partially drifted — see below)
 CLAUDE.md                  Claude-Code-specific guide (partially drifted — see below)
