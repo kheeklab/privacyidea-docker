@@ -4,11 +4,7 @@ Commands and facts in this file were verified against the files named here; when
 
 ## What this repo is
 
-<<<<<<< HEAD
 A Docker image that packages privacyIDEA (installed from PyPI) on `python:3.14-slim`, targeting privacyIDEA 3.14 and newer (upstream removed the separate kerberos requirements file in 3.14, so none are installed). The Dockerfile (build) creates a Python virtualenv at `/opt/privacyidea` in a builder stage, then the runtime stage copies it, adds `tini`, and runs as the non-root user `nobody` with gunicorn as the WSGI server (Dockerfile:28–50). Configuration is env-var-only: `configure_privacyidea.sh` builds `pi.cfg` from `rootfs/opt/templates/pi-config.template` via `envsubst`, then gunicorn is `exec`'d as a direct child of tini so it receives Docker's SIGTERM for graceful shutdown.
-=======
-A Docker image that packages privacyIDEA (installed from PyPI) on `python:3.12-slim`. The Dockerfile (build) creates a Python virtualenv at `/opt/privacyidea` in a builder stage, then the runtime stage copies it, adds `tini`, and runs as the non-root user `nobody` with gunicorn as the WSGI server (Dockerfile:28–50). Configuration is env-var-only: `configure_privacyidea.sh` builds `pi.cfg` from `rootfs/opt/templates/pi-config.template` via `envsubst`, then gunicorn is `exec`'d as a direct child of tini so it receives Docker's SIGTERM for graceful shutdown.
->>>>>>> 1d7fc3e (Align README, CLAUDE and AGENTS with current behaviour)
 
 ## Commands that matter
 
@@ -27,18 +23,10 @@ make cleanup  # stop/remove privacyidea-dev container, sudo rm -rf /tmp/privacyi
 CI pipeline in `.github/workflows/release.yml` (triggers: push to `main`, `v*` tags, PRs, manual dispatch with `pi_version`):
 
 ```bash
-<<<<<<< HEAD
 docker build --build-arg PI_VERSION=${PI_VERSION} -t privacyidea:test .        # release.yml:143
 container-structure-test test --image privacyidea:test --config structure-tests.yaml   # release.yml:157, CST v1.22.1 installed in CI
 docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120  # release.yml:175
 docker compose --file docker-compose-test.yml down -v                                     # release.yml:178
-=======
-docker build --build-arg PI_VERSION=${PI_VERSION} -t privacyidea:test .        # release.yml:136
-container-structure-test test --image privacyidea:test --config structure-tests.yaml   # release.yml:153, CST v1.22.1 installed in CI
-docker compose --file docker-compose-test.yml build --build-arg PI_VERSION=${PI_VERSION}  # release.yml:169
-docker compose --file docker-compose-test.yml up --exit-code-from sut --timeout 120       # release.yml:170
-docker compose --file docker-compose-test.yml down -v                                     # release.yml:172
->>>>>>> 1d7fc3e (Align README, CLAUDE and AGENTS with current behaviour)
 ```
 
 Dockerfile lint is hadolint with `no-fail: true` (release.yml:121–126); CI builds/pushes amd64+arm64 to Docker Hub and GHCR on non-PR runs, then Trivy (CRITICAL,HIGH, report-only). `.github/workflows/check-pi-version.yml` runs daily, creates missing `v*` tags for privacyIDEA releases available on PyPI, and pushes them, which retriggers release.yml.
@@ -52,11 +40,7 @@ docker-compose-test.yml    test stack: pi-app (build with PI_VERSION=main) + sut
 Makefile                   build/push/run/test/cleanup/help targets
 requirements.txt           psycopg2==2.9.10, gunicorn==23.0.0 (added to the venv)
 structure-tests.yaml       schemaVersion 2.0.0 (CI runs container-structure-test v1.22.1): metadata (env defaults, user nobody, workdir, entrypoint, port 8080, volume), file existence/permissions, bash -n syntax checks, logging/audit template assertions
-<<<<<<< HEAD
 run-tests.sh               integration check: waits for pi-app:8080, checks /healthz/readyz HTTP 200 and status "ready", then follows / redirect to /app/v2/ and checks privacyIDEA page content
-=======
-run-tests.sh               integration check: waits for pi-app:8080, asserts page title 'pivacyIDEA'
->>>>>>> 1d7fc3e (Align README, CLAUDE and AGENTS with current behaviour)
 tests/                     test-db-uri-encoding.sh: PI_DB_PASSWORD round-trips through one jq @uri encoding
 README.md                  user-facing docs (partially drifted — see below)
 CLAUDE.md                  Claude-Code-specific guide (partially drifted — see below)
@@ -98,10 +82,7 @@ Only environment variables; there is no dotenv loader in the image. Families:
 | Paths | `PI_DATA_DIR`, `PI_CFG_DIR`, `PI_CFG_FILE`, `PI_HOME`, `PI_MOUNT_DIR` | Dockerfile ENV (31–37); PI_MOUNT_DIR set to /etc/privacyidea/mount or /mnt/privacyidea at privacyidea_entrypoint.sh:15–21; used for file copy/script hooks (configure_privacyidea.sh:145–167) |
 | Logging | `PI_LOGLEVEL`, `PI_LOGFILE`, `PI_LOGCONFIG` | app logs go to stdout via the `console` handler by default; `PI_LOGFILE` set to a real path switches the logger to the rotating `file` handler (configure_privacyidea.sh:113–150); template reads the values at pi-config.template:31–33 |
 | TLS | `PI_SSLPORT` + mounted `/etc/privacyidea/server.key` / `server.crt` | gunicorn bind at privacyidea_entrypoint.sh:39–50 (default 8443; only bound when both files exist) |
-<<<<<<< HEAD
 | Application | `PI_BASE_URL` | read at runtime by pi-config.template:42; base URL for token enrollment/reset links and external redirects |
-=======
->>>>>>> 1d7fc3e (Align README, CLAUDE and AGENTS with current behaviour)
 
 gunicorn tuning uses the `GUNICORN_*` variables that `rootfs/opt/privacyidea/gunicorn_conf.py` actually reads (see drift section before trusting README).
 
