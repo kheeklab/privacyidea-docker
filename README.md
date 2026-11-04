@@ -47,7 +47,7 @@ Run it with
 make run
 ```
 
-Login to <http://localhost> with **admin/privacyidea**
+Login to <http://localhost:8080> with **admin/privacyidea**
 
 > [!CAUTION]
 > The default configuration provide in this reposotory contains fixed credentials and encryption keys for testing and demo purposes. It should not be used in a production environment.Please refer to the [configuration](#configuration) section below for more details.
@@ -77,7 +77,7 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 | `PI_ADMIN_PASSWORD` | Initial admin password | privacyidea |
 | `PI_DB_VENDOR` | Database vendor | sqlite |
 | `PI_DB_USER` | Database user | |
-| `PI_DB_PASSWORD` | Database password | |
+| `PI_DB_PASSWORD` | Database password (plain text; must not be URL-encoded) | |
 | `PI_DB_NAME` | Database name | |
 | `PI_DB_HOST` | Database host. For on postgres use it support multiple hosts with comma separated | |
 | `PI_DB_PORT` | Database port. For on postgres use it support multiple hosts with comma separated | depnds on PI_DB_VENDOR default for each type |
@@ -90,8 +90,9 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 | `PI_AUDIT_KEY_PUBLIC_PATH` | This is used to sign the audit log | |
 | `PI_ENCFILE` | This is used to encrypt the token data and token passwords | |
 | `PI_HSM` | privacyIDEA HSM | default |
-| `PI_LOGFILE` | privacyIDEA log file location | /var/log/privacyidea/privacyidea.log |
+| `PI_LOGFILE` | App log destination. Unset: app logs go to stdout. Set to a real file path: switches to rotating file logging | (unset — stdout) |
 | `PI_LOGLEVEL` | privacyIDEA log level | INFO |
+| `PI_LOGCONFIG` | privacyIDEA logging configuration file (YAML, loaded via `logging.config.dictConfig`) | /opt/privacyidea/pi-logging.yml |
 | `PI_SECRET_KEY` | This is used to encrypt the auth_token | |
 | `PI_SUPERUSER_REALM` | The realm, where users are allowed to login as administrators in comma separated value | administrator |
 | `PI_SKIP_BOOTSTRAP` | Set this to true to prevent the container to run setup again | false |
@@ -106,15 +107,20 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 
 | Environment Variable | Description | Default |
 | :------------------- | :---------- | :------ |
-| `GUNICORN_ACCESS_LOGFILE` | Gunicorn access log file location | stdout |
-| `GUNICORN_ERROR_LOGFILE` | Gunicorn error log file location | stderr |
-| `GUNICORN_WORKER_CLASS` | Gunicorn worker class | sync |
-| `GUNICORN_WORKERS` | Gunicorn workers | 1 |
-| `GUNICORN_BIND` | Gunicorn bind address if not set `GUNICORN_HOST` and `GUNICORN_PORT` will be used | None |
-| `GUNICORN_HOST` | Gunicorn host will be ingored if `GUNICORN_BIND` is set | 0.0.0.0 |
-| `GUNICORN_PORT` | Gunicorn port will be ingored if `GUNICORN_BIND` is set | 8080 |
-| `GUNICORN_LOGLEVEL` | Gunicorn log level | INFO |
-| `GUNICORN_TIMEOUT` | Gunicorn timeout | 60 |
+| `GUNICORN_WORKERS_PER_CORE` | Gunicorn workers per CPU core | 1 |
+| `GUNICORN_MAX_WORKERS` | Maximum number of workers (cap). If unset, no cap is applied | (unset) |
+| `GUNICORN_WEB_CONCURRENCY` | Explicit worker count; overrides the per-core calculation (must be > 0) | (unset) |
+| `GUNICORN_HOST` | Gunicorn host, ignored if `GUNICORN_BIND` is set | 0.0.0.0 |
+| `GUNICORN_PORT` | Gunicorn port, ignored if `GUNICORN_BIND` is set | 8080 |
+| `GUNICORN_BIND` | Gunicorn bind address; overrides `GUNICORN_HOST` and `GUNICORN_PORT` | (unset) |
+| `GUNICORN_LOG_LEVEL` | Gunicorn log level | info |
+| `GUNICORN_ACCESS_LOG` | Gunicorn access log file (`-` = stdout) | - |
+| `GUNICORN_ERROR_LOG` | Gunicorn error log file (`-` = stderr) | - |
+| `GUNICORN_GRACEFUL_TIMEOUT` | Gunicorn graceful timeout (seconds) | 120 |
+| `GUNICORN_TIMEOUT` | Gunicorn worker timeout (seconds) | 120 |
+| `GUNICORN_KEEP_ALIVE` | Gunicorn keep-alive (seconds) | 5 |
+
+The number of workers is calculated as `GUNICORN_WORKERS_PER_CORE` × CPU cores, with a minimum of 2. If `GUNICORN_MAX_WORKERS` is set, the count is capped at that value. `GUNICORN_WEB_CONCURRENCY` overrides the whole calculation and must be greater than 0.
 
 ## Providing Files to the Container
 
@@ -160,7 +166,6 @@ The container scans these folders.
 
 - /mnt/privacyidea/files (all files and subfolders are scanned)
 - /mnt/privacyidea/scripts
-- /usr/local/privacyidea/scripts/post-shutdown
 - /usr/local/privacyidea/scripts/pre-configure
 - /usr/local/privacyidea/scripts/pre-startup
 
@@ -182,7 +187,6 @@ After you create a container in an environment, the container entry point execut
       2. Run user-provided scripts.
   3. Pre-startup: Runs user-provided scripts before starting privacyIDEA.
   4. PrivacyIDEA startup: Launches privacyIDEA.
-  5. Post-shutdown: Runs user-provided scripts after privacyIDEA stops.
 
 ### API
 

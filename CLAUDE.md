@@ -9,7 +9,7 @@ This repository builds a Docker image for [privacyIDEA](https://github.com/priva
 ## Build Commands
 
 ```bash
-make build       # Build Docker image (tag: kheeklab/privacyidea:dev)
+make build       # Build Docker image locally (tag: mr-ssd/privacyidea:dev)
 make run         # Build, create volumes, generate secrets, and run container
 make test        # Run container-structure-test against the dev image
 make push        # Push dev image to registry
@@ -32,7 +32,6 @@ docker build --build-arg PI_VERSION=3.12 -t privacyidea:test .
 2. **configure**: Generates `pi.cfg` from template using environment variables
 3. **pre-startup** (`/usr/local/privacyidea/scripts/pre-startup`): Scripts run before privacyIDEA starts
 4. **privacyIDEA startup**: Launches gunicorn with privacyIDEA
-5. **post-shutdown** (`/usr/local/privacyidea/scripts/post-shutdown`): Scripts run after shutdown
 
 ### Key Directories (in container)
 - `/opt/privacyidea` - Python virtual environment and application code
@@ -62,7 +61,7 @@ Defined in `structure-tests.yaml`, validates:
 - Scripts have valid bash syntax
 - Binary permissions
 
-Run with: `container-structure-test test --image kheeklab/privacyidea:dev --config structure-tests.yaml`
+Run with: `container-structure-test test --image mr-ssd/privacyidea:dev --config structure-tests.yaml`
 
 ### Integration Tests
 `docker-compose-test.yml` spins up the container and a test script (`run-tests.sh`) that waits for privacyIDEA to be ready and verifies the page title.
