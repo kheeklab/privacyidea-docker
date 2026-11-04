@@ -23,6 +23,8 @@ services:
       - PI_DB_PASSWORD=privacyidea@123
       - PI_SECRET_KEY="suppersecretkey"
       - PI_PEPPER="secretworduseforadminencrypt"
+      - PI_ADMIN_USER=admin
+      - PI_ADMIN_PASSWORD=privacyidea
       - PI_PAGE_TITLE=pivacyIDEA
       - PI_SUPERUSER_REALM="administrator,api"
       - PI_DB_ARGS="ssl_check_hostname=false"
