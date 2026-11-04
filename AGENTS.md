@@ -23,11 +23,11 @@ make cleanup  # stop/remove privacyidea-dev container, sudo rm -rf /tmp/privacyi
 CI pipeline in `.github/workflows/release.yml` (triggers: push to `main`, `v*` tags, PRs, manual dispatch with `pi_version`):
 
 ```bash
-docker build --build-arg PI_VERSION=${PI_VERSION} -t privacyidea:test .        # release.yml:136
-container-structure-test test --image privacyidea:test --config structure-tests.yaml   # release.yml:153, CST v1.22.1 installed in CI
-docker compose --file docker-compose-test.yml build --build-arg PI_VERSION=${PI_VERSION}  # release.yml:169
-docker compose --file docker-compose-test.yml up --exit-code-from sut --timeout 120       # release.yml:170
-docker compose --file docker-compose-test.yml down -v                                     # release.yml:172
+docker build --build-arg PI_VERSION=${PI_VERSION} -t privacyidea:test .        # release.yml:143
+container-structure-test test --image privacyidea:test --config structure-tests.yaml   # release.yml:157, CST v1.22.1 installed in CI
+docker compose --file docker-compose-test.yml build --build-arg PI_VERSION=${PI_VERSION}  # release.yml:175
+docker compose --file docker-compose-test.yml up --exit-code-from sut --timeout 120       # release.yml:176
+docker compose --file docker-compose-test.yml down -v                                     # release.yml:178
 ```
 
 Dockerfile lint is hadolint with `no-fail: true` (release.yml:121–126); CI builds/pushes amd64+arm64 to Docker Hub and GHCR on non-PR runs, then Trivy (CRITICAL,HIGH, report-only). `.github/workflows/check-pi-version.yml` runs daily, creates missing `v*` tags for privacyIDEA releases available on PyPI, and pushes them, which retriggers release.yml.
