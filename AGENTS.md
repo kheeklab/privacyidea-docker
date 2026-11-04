@@ -4,7 +4,7 @@ Commands and facts in this file were verified against the files named here; when
 
 ## What this repo is
 
-A Docker image that packages privacyIDEA (installed from PyPI) on `python:3.12-slim`. The Dockerfile (build) creates a Python virtualenv at `/opt/privacyidea` in a builder stage, then the runtime stage copies it, adds `tini`, and runs as the non-root user `nobody` with gunicorn as the WSGI server (Dockerfile:28–50). Configuration is env-var-only: `configure_privacyidea.sh` builds `pi.cfg` from `rootfs/opt/templates/pi-config.template` via `envsubst`, then gunicorn is `exec`'d as a direct child of tini so it receives Docker's SIGTERM for graceful shutdown.
+A Docker image that packages privacyIDEA (installed from PyPI) on `python:3.12-slim`, targeting privacyIDEA 3.14 and newer (upstream removed the separate kerberos requirements file in 3.14, so none are installed). The Dockerfile (build) creates a Python virtualenv at `/opt/privacyidea` in a builder stage, then the runtime stage copies it, adds `tini`, and runs as the non-root user `nobody` with gunicorn as the WSGI server (Dockerfile:28–50). Configuration is env-var-only: `configure_privacyidea.sh` builds `pi.cfg` from `rootfs/opt/templates/pi-config.template` via `envsubst`, then gunicorn is `exec`'d as a direct child of tini so it receives Docker's SIGTERM for graceful shutdown.
 
 ## Commands that matter
 

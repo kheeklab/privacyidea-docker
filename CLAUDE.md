@@ -18,7 +18,7 @@ make cleanup     # Remove container, volumes, and secret files
 
 Build with specific privacyIDEA version:
 ```bash
-docker build --build-arg PI_VERSION=3.12 -t privacyidea:test .
+docker build --build-arg PI_VERSION=3.14 -t privacyidea:test .
 ```
 
 ## Architecture

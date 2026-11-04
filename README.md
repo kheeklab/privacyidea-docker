@@ -23,7 +23,9 @@ The image is stored in below registries:
 
 ### Tags
 
-The image tags are following privacyIDEA version e.g. `3.9.1` and `latest`. The default tag is `latest` is not suitable for production environments as it might not test all use cases.
+The image tags are following privacyIDEA version e.g. `3.14` and `latest`. The default tag is `latest` is not suitable for production environments as it might not test all use cases.
+
+This image targets privacyIDEA 3.14 and newer. Kerberos extras are not installed: upstream dropped the separate `requirements-kerberos.txt` in 3.14.
 
 | Tag | Description |
 | :-- | :---------- |
