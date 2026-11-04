@@ -20,7 +20,21 @@ RUN set -eux; \
     . "/opt/privacyidea/bin/activate"; \
     pip3 install --upgrade pip wheel; \
     pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements.txt; \
-    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements-kerberos.txt; \
+    KERBEROS_URL="https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements-kerberos.txt"; \
+    KERBEROS_HTTP=$(curl -sSL -o /tmp/requirements-kerberos.txt -w '%{http_code}' "$KERBEROS_URL") || KERBEROS_HTTP=000; \
+    if [ "$KERBEROS_HTTP" = "404" ]; then \
+        echo "No requirements-kerberos.txt for v${VERSION#v}; skipping kerberos extras"; \
+        rm -f /tmp/requirements-kerberos.txt; \
+    elif [ "$KERBEROS_HTTP" != "200" ]; then \
+        echo "Failed to download requirements-kerberos.txt: HTTP $KERBEROS_HTTP" >&2; \
+        exit 1; \
+    elif [ ! -s /tmp/requirements-kerberos.txt ]; then \
+        echo "requirements-kerberos.txt downloaded empty; aborting" >&2; \
+        exit 1; \
+    else \
+        pip3 install -r /tmp/requirements-kerberos.txt; \
+        rm -f /tmp/requirements-kerberos.txt; \
+    fi; \
     pip3 install privacyidea==${VERSION#v}; \
     pip3 install -r /tmp/requirements.txt
 
