@@ -1,11 +1,11 @@
-ARG BASE_IMAGE_TAG=3.12-slim
+ARG BASE_IMAGE_TAG=3.14-slim
 ARG PI_VERSION=main
 ARG PI_HOME=/opt/privacyidea
 
 FROM python:$BASE_IMAGE_TAG AS builder
 ARG PI_HOME
 ARG PI_VERSION
-RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libkrb5-dev libxslt-dev --no-install-recommends
+RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libxslt-dev --no-install-recommends
 COPY requirements.txt /tmp/requirements.txt
 RUN set -eux; \
     VERSION="$PI_VERSION"; \
@@ -20,7 +20,6 @@ RUN set -eux; \
     . "/opt/privacyidea/bin/activate"; \
     pip3 install --upgrade pip wheel; \
     pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements.txt; \
-    pip3 install -r https://raw.githubusercontent.com/privacyidea/privacyidea/v${VERSION#v}/requirements-kerberos.txt; \
     pip3 install privacyidea==${VERSION#v}; \
     pip3 install -r /tmp/requirements.txt
 

@@ -21,7 +21,7 @@ SQLALCHEMY_DATABASE_URI = "$SQLALCHEMY_DATABASE_URI"
 PI_ENCFILE = os.environ.get("PI_ENCFILE", "/data/privacyidea/keys/encfile")
 PI_HSM = os.environ.get("PI_HSM", "default")
 PI_AUDIT_NO_SIGN = os.environ.get("PI_AUDIT_NO_SIGN", "False").lower() == "true"
-PI_AUDIT_MODULE = os.environ.get("", "privacyidea.lib.auditmodules.sqlaudit")
+PI_AUDIT_MODULE = os.environ.get("PI_AUDIT_MODULE", "privacyidea.lib.auditmodules.sqlaudit")
 # PI_AUDIT_KEY_PRIVATE will be used only when PI_AUDIT_NO_SIGN is True
 PI_AUDIT_KEY_PRIVATE = os.environ.get("PI_AUDIT_KEY_PRIVATE_PATH", "/data/privacyidea/keys/private.pem")
 # PI_AUDIT_KEY_PUBLIC will be used only when PI_AUDIT_NO_SIGN is True
@@ -39,3 +39,4 @@ PI_ENGINE_REGISTRY_CLASS = os.environ.get("PI_ENGINE_REGISTRY_CLASS", "shared")
 PI_PAGE_TITLE = os.environ.get("PI_PAGE_TITLE", "privacyIDEA Authentication System")
 PI_AUDIT_SQL_TRUNCATE = True
 PI_NODE_UUID= os.environ.get("PI_NODE_UUID", "8e4272a9-9037-40df-8aa3-976e4a04b5a9")
+PI_BASE_URL = os.environ.get("PI_BASE_URL")

@@ -10,17 +10,20 @@ services:
       - POSTGRESQL_USERNAME=privacyidea
       - POSTGRESQL_PASSWORD=privacyidea
   privacyidea:
-    image: 'docker.io/khalibre/privacyidea:dev'
+    image: 'docker.io/kheeklab/privacyidea:dev'
     ports:
-      - '80:80'
+      - '8080:8080'
     environment:
-      - DB_VENDOR=postgresql
-      - DB_NAME=privacyidea
-      - DB_HOST=postgresql
-      - DB_USER=privacyidea
-      - DB_PASSWORD=privacyidea
-      - SECRET_KEY=suppersecretkey
+      - PI_DB_VENDOR=postgresql
+      - PI_DB_NAME=privacyidea
+      - PI_DB_HOST=postgresql
+      - PI_DB_USER=privacyidea
+      - PI_DB_PASSWORD=privacyidea
+      - PI_SECRET_KEY=suppersecretkey
+      - PI_ADMIN_USER=admin
+      - PI_ADMIN_PASSWORD=privacyidea
       - PI_PEPPER=secretworduseforadminencrypt
       - PI_PAGE_TITLE=pivacyIDEA
+      - PI_BASE_URL=http://localhost:8080
     depends_on:
       - postgresql

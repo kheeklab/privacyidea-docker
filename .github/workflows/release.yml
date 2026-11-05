@@ -119,7 +119,7 @@ jobs:
 
       # Step 8: Lint Dockerfile
       - name: Hadolint Action
-        uses: hadolint/hadolint-action@v3.3.0
+        uses: hadolint/hadolint-action@v3.5.0
         with:
           format: sarif
           output-file: hadolint-results.sarif
@@ -130,6 +130,14 @@ jobs:
         with:
           sarif_file: hadolint-results.sarif
           category: hadolint-dockerfile
+
+      # Step 8b: Lint shell scripts
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: .
+          additional_files: prebuildfs/usr/sbin/install_packages
+          severity: error
 
       # Step 9: Build local image for tests
       - name: Build test image
@@ -166,8 +174,7 @@ jobs:
         run: |
           set +e
           docker compose version
-          docker compose --file docker-compose-test.yml build --build-arg PI_VERSION=${{ steps.pi_version.outputs.version }}
-          docker compose --file docker-compose-test.yml up --exit-code-from sut --timeout 120 | tee compose-test.log
+          docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120 | tee compose-test.log
           status=${PIPESTATUS[0]}
           docker compose --file docker-compose-test.yml down -v || true
           set -e
@@ -227,7 +234,7 @@ jobs:
       # Step 16: Run Trivy vulnerability scanner
       - name: Run Trivy vulnerability scanner
         if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ steps.images.outputs.ghcr }}:${{ steps.pi_version.outputs.version }}
           format: 'table'
@@ -235,5 +242,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: github.ref_type == 'tag'
+
+
