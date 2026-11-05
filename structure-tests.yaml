@@ -82,3 +82,15 @@ commandTests:
       - "-lc"
       - "touch /data/privacyidea/.structure-test-write && rm -f /data/privacyidea/.structure-test-write"
     exitCode: 0
+  - name: "Audit module override reads the environment"
+    command: "bash"
+    args:
+      - "-lc"
+      - "grep -q 'PI_AUDIT_MODULE = os.environ.get(\"PI_AUDIT_MODULE\"' /opt/templates/pi-config.template"
+    exitCode: 0
+  - name: "App logs to stdout by default"
+    command: "bash"
+    args:
+      - "-lc"
+      - "grep -q 'handlers: \\[console\\]' /opt/privacyidea/pi-logging.yml"
+    exitCode: 0

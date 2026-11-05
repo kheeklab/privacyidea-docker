@@ -25,10 +25,9 @@ function generate_pi_config {
         check_and_clean_vars "PI_DB_NAME"
         check_and_clean_vars "PI_DB_VENDOR"
 
-        # URL encode the password
-        # TODO: Fix double-encoding bug - if password contains '%', jq encodes to %25,
-        # and if it already contains %25 (URL-encoded %), it becomes %2525. This needs
-        # proper URL encoding that handles already-encoded characters.
+        # PI_DB_PASSWORD is the plain password and must not be pre-encoded by the user.
+        # Percent-encoding happens exactly once here, via jq @uri, so characters such as
+        # '@', ':', '/', '%' and '+' are encoded correctly for the SQLAlchemy URI.
         encoded_password=$(printf "%s" "$PI_DB_PASSWORD" | jq -s -R -r @uri)
     }
 
@@ -113,16 +112,22 @@ function generate_pi_config {
     # Update the log level
     sed -i -e "s/level: .*/level: ${PI_LOGLEVEL}/g" /opt/privacyidea/pi-logging.yml
 
-    # PI_LOGCONFIG uses this file handler, so PI_LOGFILE must also update its filename.
-    if [ -n "${PI_LOGFILE:-}" ]; then
-        python3 - <<'PY'
+    # App logs go to stdout (console handler) by default. Setting PI_LOGFILE to a real
+    # path switches the privacyidea logger to the rotating file handler instead. A pipe
+    # (/dev/stdout, /dev/stderr) is never handed to RotatingFileHandler, which cannot seek.
+    case "${PI_LOGFILE:-}" in
+        "" | /dev/stdout | /dev/stderr)
+            ;;
+        *)
+            python3 - <<'PY'
 import json
 import os
-from pathlib import Path
 import re
+from pathlib import Path
 
 logging_config = Path("/opt/privacyidea/pi-logging.yml")
 contents = logging_config.read_text()
+
 contents, count = re.subn(
     r"(?m)^([ \t]*filename:[ \t]*).*$",
     lambda match: match.group(1) + json.dumps(os.environ["PI_LOGFILE"]),
@@ -130,9 +135,19 @@ contents, count = re.subn(
 )
 if count != 1:
     raise ValueError(f"Expected one log filename in {logging_config}, found {count}")
+
+contents, count = re.subn(
+    r"(?m)^([ \t]*handlers:[ \t]*\[)[^\]]*(\])",
+    lambda match: match.group(1) + "file" + match.group(2),
+    contents,
+)
+if count != 1:
+    raise ValueError(f"Expected one logger handlers line in {logging_config}, found {count}")
+
 logging_config.write_text(contents)
 PY
-    fi
+            ;;
+    esac
 }
 
 # Function to perform pre-start tasks for PrivacyIDEA

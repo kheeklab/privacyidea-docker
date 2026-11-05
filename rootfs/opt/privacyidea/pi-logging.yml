@@ -9,6 +9,7 @@ handlers:
     class: logging.StreamHandler
     level: INFO
     formatter: detail
+    stream: ext://sys.stdout
   file:
     # Rollover the logfile at midnight
     class: logging.handlers.RotatingFileHandler
@@ -21,4 +22,4 @@ handlers:
 loggers:
   privacyidea:
     level: INFO
-    handlers: [file]
+    handlers: [console]
