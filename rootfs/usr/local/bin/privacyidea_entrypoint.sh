@@ -37,10 +37,11 @@ function main {
     # This replaces the shell with gunicorn as a direct child of tini (PID 1),
     # so Docker's SIGTERM is received directly by gunicorn, enabling graceful shutdown.
     if [ -f /etc/privacyidea/server.key -a -f /etc/privacyidea/server.crt ]; then
+        TLS_BIND="${GUNICORN_BIND:-0.0.0.0:${PI_SSLPORT:-8443}}"
         exec /opt/privacyidea/bin/gunicorn \
             --certfile=/etc/privacyidea/server.crt \
             --keyfile=/etc/privacyidea/server.key \
-            --bind 0.0.0.0:${PI_SSLPORT:-8443} \
+            --bind "${TLS_BIND}" \
             -c /opt/privacyidea/gunicorn_conf.py \
             "privacyidea.app:create_app(config_name='production', config_file='$PI_CFG_DIR/$PI_CFG_FILE')"
     else
