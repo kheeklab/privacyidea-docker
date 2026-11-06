@@ -83,7 +83,7 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 | `PI_DB_NAME` | Database name | |
 | `PI_DB_HOST` | Database host. For on postgres use it support multiple hosts with comma separated | |
 | `PI_DB_PORT` | Database port. For on postgres use it support multiple hosts with comma separated | depnds on PI_DB_VENDOR default for each type |
-| `PI_DB_ARGS` | Addiitional DB attributes | |
+| `PI_DB_ARGS` | Additional DB attributes as comma-separated `key=value` pairs; commas become `&`, and values are inserted verbatim without URL-encoding. Avoid `&`, `=`, `%`, `,`, and spaces inside values | |
 | `SQLALCHEMY_DATABASE_URI` | Full SQL connection string. If set it will override all PI_DB_* settings | |
 | `PI_CACHE_TYPE` | privacyIDEA cache type | simple |
 | `PI_PEPPER` | This is used to encrypt the admin passwords | |
@@ -97,12 +97,12 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 | `PI_LOGCONFIG` | privacyIDEA logging configuration file (YAML, loaded via `logging.config.dictConfig`) | /opt/privacyidea/pi-logging.yml |
 | `PI_SECRET_KEY` | This is used to encrypt the auth_token | |
 | `PI_SUPERUSER_REALM` | The realm, where users are allowed to login as administrators in comma separated value | administrator |
-| `PI_SKIP_BOOTSTRAP` | Set this to true to prevent the container to run setup again | false |
-| `PI_AUTO_UPDATE` | Set this to true to automatically update privacyIDEA. Only effect when `PI_SKIP_BOOTSTRAP` is set to **true** | false |
+| `PI_SKIP_BOOTSTRAP` | Set this to true to force skipping bootstrap. Bootstrap runs only on first start, tracked by a marker file in `PI_DATA_DIR` | false |
+| `PI_AUTO_UPDATE` | Set this to true to upgrade the privacyIDEA schema when the system is initialized (including when `PI_SKIP_BOOTSTRAP` is true) | false |
 | `PI_SSLPORT` | Use https instead of http and listen on this port. To make this work bind mount or copy the private key and the certificate into /etc/privacyidea/server.{key,crt} | 8443 |
 
 > [!WARNING]
-> Be careful and setting `PI_SKIP_BOOTSTRAP` to **true** after first initialization. This will prevent the container to run setup again or your data such as admin credentials, secret keys, etc will be overwritten.
+> Bootstrap runs only once, on first start, and records initialization in `PI_DATA_DIR`. Setting `PI_SKIP_BOOTSTRAP` to **true** forces bootstrap to be skipped; it does not overwrite admin credentials or keys. For non-SQLite databases, startup refuses to generate new keys if privacyIDEA data exists but key files are missing.
 > `PI_AUTO_UPDATE` set to **true** will update privacyIDEA to the latest version. Make sure you have backup your data before setting `PI_AUTO_UPDATE` to **true**.
 
 ### gunicorn environment variables
@@ -151,6 +151,8 @@ You can provide files to the container in several ways.
 All of the use cases require making files available on container creation. Bind mounts and volumes accomplish this. Applying config files can be accomplished on container creation using bind mounts and volumes, or at run time using docker cp.
 
 Bind mounts are used in the examples here as they are simpler than volumes for providing files. As you prepare files for mounting to a container, it’s helpful to organize them in a way that’s easiest for you to manage. Bind mounting to privacyIDEA containers, organizing files, and using docker cp are covered here.
+
+Scripts under `/mnt/privacyidea/scripts/*.sh` are sourced into the entrypoint shell, not run in a subshell. A script that calls `exit` terminates container startup; a failing command aborts startup because the shell uses `set -e`; exported variables are available to later stages.
 
 ### Bind Mount Format
 
@@ -202,6 +204,10 @@ The key folders above have subfolders that are designated for specific actions. 
 ## Contributing
 
 We'd love for you to contribute to this container. You can request new features by creating an issue, or submitting a pull request with your contribution.
+
+## Persistence
+
+The image chowns `/data/privacyidea` and `/etc/privacyidea` to `nobody` at build time. Bind mounts and reused named volumes do not inherit this ownership. If a mount is owned by another UID, `nobody` cannot write: SQLite startup fails with `PI_DATA_DIR ... is not writable`, and external-DB key/config writes fail. Use a fresh named volume, which copies ownership on first use, or pre-chown a bind mount to the `nobody` UID.
 
 ## Star History
 
