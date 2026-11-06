@@ -195,8 +195,55 @@ function prestart_privacyidea {
         echo ""
     fi
 
-    # Generate keys, create tables, and admin user
-    if [ "${PI_SKIP_BOOTSTRAP}" = false ]; then
+    # Resolve key file paths once, so the existence guards below and
+    # privacyIDEA (which reads these via pi.cfg) always agree, even when
+    # PI_DATA_DIR or the key path variables are overridden.
+    export PI_ENCFILE="${PI_ENCFILE:-${PI_DATA_DIR}/keys/encfile}"
+    export PI_AUDIT_KEY_PRIVATE_PATH="${PI_AUDIT_KEY_PRIVATE_PATH:-${PI_DATA_DIR}/keys/private.pem}"
+    export PI_AUDIT_KEY_PUBLIC_PATH="${PI_AUDIT_KEY_PUBLIC_PATH:-${PI_DATA_DIR}/keys/public.pem}"
+
+    # A marker records a completed bootstrap. Without it, every restart would
+    # re-run `pi-manage admin add` (resetting the admin password) and
+    # `create_tables`.
+    initialized=0
+    if [ -f "${PI_DATA_DIR}/.privacyidea_initialized" ]; then
+        initialized=1
+    fi
+
+    if [ "${PI_SKIP_BOOTSTRAP}" = true ]; then
+        echo ""
+        echo "[INFO] Skipping key generation, table creation, and admin user creation."
+        echo ""
+        initialized=1
+    elif [ "$initialized" = 1 ]; then
+        echo ""
+        echo "[INFO] privacyIDEA already initialized; skipping bootstrap."
+        echo ""
+    else
+        # Fresh bootstrap: create tables, keys, and admin exactly once.
+
+        # For a non-SQLite database, refuse to regenerate keys when the
+        # database already contains privacyIDEA data but the key files are
+        # missing. New keys cannot decrypt existing tokens; restore the key
+        # volume instead.
+        if [ -n "$SQLALCHEMY_DATABASE_URI" ] && [[ "$SQLALCHEMY_DATABASE_URI" != sqlite:* ]] && [ ! -f "$PI_ENCFILE" ]; then
+            schema_present=$(/opt/privacyidea/bin/python - "$SQLALCHEMY_DATABASE_URI" <<'PY'
+import sys
+from sqlalchemy import create_engine, inspect
+try:
+    tables = set(inspect(create_engine(sys.argv[1])).get_table_names())
+    if {"token", "admin", "alembic_version"} & tables:
+        print("yes")
+except Exception:
+    pass
+PY
+)
+            if [ "$schema_present" = "yes" ]; then
+                echo "[ERROR] Database already contains privacyIDEA data, but the encryption key ($PI_ENCFILE) is missing." >&2
+                echo "[ERROR] Refusing to regenerate keys: new keys cannot decrypt existing tokens. Restore your key volume." >&2
+                exit 1
+            fi
+        fi
 
         # Create database tables
         echo ""
@@ -204,32 +251,21 @@ function prestart_privacyidea {
         echo ""
         pi-manage setup create_tables
 
-        # Create keys directory if not exists
-        if [ ! -d "${PI_DATA_DIR}/keys" ]; then
+        # Create encryption key file if missing or empty
+        if [ ! -f "$PI_ENCFILE" ] || [ ! -s "$PI_ENCFILE" ]; then
             echo ""
-            echo "[INFO] Creating keys directory..."
+            echo "[INFO] Encryption key file not found or empty, creating a new one..."
             echo ""
-            mkdir -p "${PI_DATA_DIR}/keys"
-        fi
-
-        # Create encryption key file if not exists or invalid
-        if [ ! -f "${PI_DATA_DIR}/keys/encfile" ]; then
-            echo ""
-            echo "[INFO] Encryption key file not found, creating a new one..."
-            echo ""
-            pi-manage setup create_enckey
-        elif [ ! -s "${PI_DATA_DIR}/keys/encfile" ]; then
-            echo ""
-            echo "[WARNING] Encryption key file is empty, recreating..."
-            echo ""
+            mkdir -p "$(dirname "$PI_ENCFILE")"
             pi-manage setup create_enckey
         fi
 
-        # Create audit keys if not exists
-        if [ ! -f "${PI_DATA_DIR}/keys/private.pem" ]; then
+        # Create audit keys if missing
+        if [ ! -f "$PI_AUDIT_KEY_PRIVATE_PATH" ]; then
             echo ""
             echo "[INFO] Creating audit keys..."
             echo ""
+            mkdir -p "$(dirname "$PI_AUDIT_KEY_PRIVATE_PATH")"
             pi-manage setup create_audit_keys
         fi
 
@@ -252,13 +288,12 @@ function prestart_privacyidea {
             echo ""
             pi-manage admin add "${PI_ADMIN_USER}" --password "${PI_ADMIN_PASSWORD}"
         fi
-    else
-        echo ""
-        echo "[INFO] Skipping key generation, table creation, and admin user creation."
-        echo ""
+
+        touch "${PI_DATA_DIR}/.privacyidea_initialized"
+        initialized=1
     fi
 
-    if [ "${PI_SKIP_BOOTSTRAP}" = true ] && [ "${PI_AUTO_UPDATE}" = true ] ; then
+    if [ "${PI_AUTO_UPDATE}" = true ] && [ "$initialized" = 1 ]; then
         echo "Auto updating privacyIDEA..."
         if ! privacyidea-schema-upgrade -d /opt/privacyidea/lib/privacyidea/migrations; then
             echo "[ERROR] Schema upgrade failed. Check database connectivity and try again."
