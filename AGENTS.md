@@ -63,11 +63,13 @@ tini (Dockerfile:50 ENTRYPOINT)
       ├─ execute_scripts /usr/local/privacyidea/scripts/pre-startup      (line 27)
       ├─ source configure_privacyidea.sh                                  (line 31)
       │    ├─ generate_pi_config: build SQLALCHEMY_DATABASE_URI from PI_DB_*, envsubst template → /etc/privacyidea/pi.cfg, rewrite log level/file in pi-logging.yml
-      │    └─ prestart_privacyidea: copy ${PI_MOUNT_DIR}/files into PI_HOME, run ${PI_MOUNT_DIR}/scripts, then unless PI_SKIP_BOOTSTRAP: pi-manage setup create_tables / create_enckey / create_audit_keys / admin add
+      │    └─ prestart_privacyidea: copy ${PI_MOUNT_DIR}/files into PI_HOME, run ${PI_MOUNT_DIR}/scripts, then bootstrap tables/keys/admin once (marker in PI_DATA_DIR), unless PI_SKIP_BOOTSTRAP is true; PI_AUTO_UPDATE upgrades schema when initialized
       └─ exec gunicorn -c /opt/privacyidea/gunicorn_conf.py "privacyidea.app:create_app(...)"    (lines 39–50; with --certfile/--keyfile if /etc/privacyidea/server.{key,crt} exist)
 ```
 
 The `exec` (privacyidea_entrypoint.sh:39–50) replaces the shell, making gunicorn a direct child of tini (PID 1), so Docker's SIGTERM reaches gunicorn and shuts it down gracefully. Do not replace this handoff with a foreground child shell.
+
+Mount scripts under `${PI_MOUNT_DIR}/scripts/*.sh` are sourced into the entrypoint shell by `_privacyidea_common.sh:3`, not run in a subshell. A hook that calls `exit` terminates container startup; a failing command aborts startup via `set -e`; exported variables are available to later stages.
 
 ## Configuration surface
 
@@ -75,12 +77,12 @@ Only environment variables; there is no dotenv loader in the image. Families:
 
 | Family | Variables | Where they act |
 | :-- | :-- | :-- |
-| Bootstrap | `PI_SKIP_BOOTSTRAP`, `PI_AUTO_UPDATE` | configure_privacyidea.sh:170 (`=false` runs pi-manage setup), :232–238 (schema upgrade only when skip=true and auto-update=true); Dockerfile ENV defaults |
-| Database | `PI_DB_VENDOR`, `PI_DB_NAME`, `PI_DB_HOST`, `PI_DB_USER`, `PI_DB_PASSWORD`, `PI_DB_ARGS` (+ `PI_DB_PORT`, `SQLALCHEMY_DATABASE_URI` override) | configure_privacyidea.sh:53–97 builds SQLAlchemy URI; `PI_DB_PASSWORD` is the plain password, percent-encoded exactly once with jq at :32; template renders URI at pi-config.template:18 |
-| Secrets | `PI_SECRET_KEY`, `PI_PEPPER` | read at runtime by pi-config.template:5,10; refuses to start if unset; created by Makefile `secretkey`/`pipepper` |
-| Admin | `PI_ADMIN_USER`, `PI_ADMIN_PASSWORD` | configure_privacyidea.sh:208–225; required for non-SQLite, defaults admin/privacyidea for SQLite |
-| Paths | `PI_DATA_DIR`, `PI_CFG_DIR`, `PI_CFG_FILE`, `PI_HOME`, `PI_MOUNT_DIR` | Dockerfile ENV (31–37); PI_MOUNT_DIR set to /etc/privacyidea/mount or /mnt/privacyidea at privacyidea_entrypoint.sh:15–21; used for file copy/script hooks (configure_privacyidea.sh:145–167) |
-| Logging | `PI_LOGLEVEL`, `PI_LOGFILE`, `PI_LOGCONFIG` | app logs go to stdout via the `console` handler by default; `PI_LOGFILE` set to a real path switches the logger to the rotating `file` handler (configure_privacyidea.sh:113–150); template reads the values at pi-config.template:31–33 |
+| Bootstrap | `PI_SKIP_BOOTSTRAP`, `PI_AUTO_UPDATE` | configure_privacyidea.sh:205–223 (marker tracks first bootstrap; skip=true forces skipping); :292–299 (auto-update upgrades schema when initialized, including skip=true); Dockerfile ENV defaults |
+| Database | `PI_DB_VENDOR`, `PI_DB_NAME`, `PI_DB_HOST`, `PI_DB_USER`, `PI_DB_PASSWORD`, `PI_DB_ARGS` (+ `PI_DB_PORT`, `SQLALCHEMY_DATABASE_URI` override) | configure_privacyidea.sh:51–103 builds SQLAlchemy URI; `PI_DB_PASSWORD` is the plain password, percent-encoded exactly once with jq at :28–31; `PI_DB_ARGS` is comma-separated `key=value` pairs, commas become `&`, and values are inserted verbatim without URL-encoding (avoid `&`, `=`, `%`, `,`, and spaces inside values); template renders URI at pi-config.template:18 |
+| Secrets | `PI_SECRET_KEY`, `PI_PEPPER` | read at runtime by pi-config.template:5–13; refuses to start if unset or empty; created by Makefile `secretkey`/`pipepper` |
+| Admin | `PI_ADMIN_USER`, `PI_ADMIN_PASSWORD` | configure_privacyidea.sh:272–290; admin is created only on first bootstrap; required for non-SQLite, defaults admin/privacyidea for SQLite |
+| Paths | `PI_DATA_DIR`, `PI_CFG_DIR`, `PI_CFG_FILE`, `PI_HOME`, `PI_MOUNT_DIR` | Dockerfile ENV (31–37); PI_MOUNT_DIR set to /etc/privacyidea/mount or /mnt/privacyidea at privacyidea_entrypoint.sh:15–21; used for file copy/script hooks (configure_privacyidea.sh:169–196) |
+| Logging | `PI_LOGLEVEL`, `PI_LOGFILE`, `PI_LOGCONFIG` | app logs go to stdout via the `console` handler by default; `PI_LOGFILE` set to a real path switches the logger to the rotating `file` handler (configure_privacyidea.sh:120–164); template reads the values at pi-config.template:31–33 |
 | TLS | `PI_SSLPORT` + mounted `/etc/privacyidea/server.key` / `server.crt` | gunicorn bind at privacyidea_entrypoint.sh:39–50 (default 8443; only bound when both files exist) |
 | Application | `PI_BASE_URL` | read at runtime by pi-config.template:42; base URL for token enrollment/reset links and external redirects |
 
@@ -88,8 +90,9 @@ gunicorn tuning uses the `GUNICORN_*` variables that `rootfs/opt/privacyidea/gun
 
 ## Persistence
 
-- `/data/privacyidea` — declared VOLUME (Dockerfile:49); holds `privacyidea.db` for SQLite (configure_privacyidea.sh:95) and `/data/privacyidea/keys/` (encfile, private.pem/public.pem; :179–205).
+- `/data/privacyidea` — declared VOLUME (Dockerfile:49); holds `privacyidea.db` for SQLite (configure_privacyidea.sh:95), the `.privacyidea_initialized` bootstrap marker (configure_privacyidea.sh:205–210,292), and `/data/privacyidea/keys/` (encfile, private.pem/public.pem; configure_privacyidea.sh:201–203).
 - `/etc/privacyidea` — runtime config `pi.cfg` and TLS material; chowned to nobody (Dockerfile:42–43) but not a declared volume.
+- The image chowns `/data/privacyidea` and `/etc/privacyidea` to `nobody` at build time; bind mounts and reused named volumes do not inherit this ownership. If another UID owns a mount, `nobody` cannot write: SQLite startup fails with `PI_DATA_DIR ... is not writable`, and external-DB key/config writes fail. Use a fresh named volume (which copies ownership on first use) or pre-chown a bind mount to the `nobody` UID.
 - External DB — MariaDB/PostgreSQL via `PI_DB_VENDOR` + the `PI_DB_*` variables; demo stack uses bitnami images with their default env vars (docker-compose.yml:4–30).
 - There is no backup or restore tooling anywhere in the repo; volume deletion destroys the database and keys with no recovery path in-repo.
 

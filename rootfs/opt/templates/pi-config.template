@@ -3,12 +3,12 @@ import logging
 import sys
 
 SECRET_KEY = os.environ.get('PI_SECRET_KEY')
-if SECRET_KEY is None:
+if not SECRET_KEY:
     print("SECRET_KEY not set! Refusing to start")
     sys.exit(1)
 
 PI_PEPPER = os.environ.get('PI_PEPPER')
-if PI_PEPPER is None:
+if not PI_PEPPER:
     print("PI_PEPPER not set! Refusing to start")
     sys.exit(1)
 
