@@ -20,10 +20,16 @@ jobs:
       - name: Get PI tags
         id: get-pi-tags
         run: |
-          echo "Fetching PI release tags from GitHub API (first page, excluding pre-releases)..."
-          PI_TAGS=$(curl -fsSL -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/privacyidea/privacyidea/releases" \
-            | jq -r '.[] | select(.prerelease == false) | .tag_name' 2>/dev/null || true)
+          echo "Fetching upstream PI release tags..."
+          PI_TAGS=$(git ls-remote --tags --refs https://github.com/privacyidea/privacyidea.git \
+            | grep -oE 'refs/tags/v[0-9]+(\.[0-9]+)+$' \
+            | sed 's|refs/tags/||')
+
+          if [[ -z "$PI_TAGS" ]]; then
+            echo "Error: Failed to fetch upstream tags" >&2
+            exit 1
+          fi
+
           # Convert newlines to spaces
           PI_TAGS_FORMATTED=$(echo "$PI_TAGS" | tr '\n' ' ')
           echo "pi_tags=$PI_TAGS_FORMATTED" >> $GITHUB_ENV
@@ -32,15 +38,23 @@ jobs:
         id: get-pi-pypi-versions
         run: |
           echo "Fetching privacyIDEA release versions from PyPI..."
-          PYPI_VERSIONS=$(curl -fsSL "https://pypi.org/pypi/privacyIDEA/json" \
-            | jq -r '.releases | keys[]' 2>/dev/null || true)
+          PYPI_VERSIONS=$(curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused "https://pypi.org/pypi/privacyIDEA/json" \
+            | jq -e -r '.releases | keys[]')
+
+          if [[ -z "$PYPI_VERSIONS" ]]; then
+            echo "Error: Failed to fetch versions from PyPI" >&2
+            exit 1
+          fi
+
+          # Convert newlines to spaces
           PYPI_VERSIONS_FORMATTED=$(echo "$PYPI_VERSIONS" | tr '\n' ' ')
           echo "pypi_versions=$PYPI_VERSIONS_FORMATTED" >> $GITHUB_ENV
 
       - name: Get existing tags
         id: get-existing-tags
         run: |
-          git fetch --tags
+          echo "Fetching existing tags from repository..."
+          git fetch --tags origin
           EXISTING_TAGS=$(git tag -l)
           # Convert newlines to spaces
           EXISTING_TAGS_FORMATTED=$(echo "$EXISTING_TAGS" | tr '\n' ' ')
@@ -50,7 +64,12 @@ jobs:
         id: process_tags
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PI_TAGS: ${{ env.pi_tags }}
         run: |
+          # Configure git identity before tagging
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           # Convert existing tags to a pattern for quick matching
           EXISTING_TAGS_PATTERN=" ${{ env.existing_tags }} "
           # Convert PyPI versions to a pattern for quick matching
@@ -62,9 +81,9 @@ jobs:
           SKIPPED_NOT_ON_PYPI=0
 
           # Process each PI tag
-          for tag in ${{ env.pi_tags }}; do
-            # Only process version tags starting with 'v'
-            if [[ ! "$tag" =~ ^v ]]; then
+          for tag in $PI_TAGS; do
+            # Validate with strict SemVer regex
+            if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+)+$ ]]; then
               continue
             fi
 
@@ -89,18 +108,21 @@ jobs:
             git tag "$tag"
           done
 
-          # Push all tags at once - this triggers release.yml via push: tags: 'v*'
-          # But for reliability, also explicitly trigger the release workflow
+          # Push all tags at once and trigger the release workflow
           if [[ ${#TAGS_TO_CREATE[@]} -gt 0 ]]; then
             echo "Pushing ${#TAGS_TO_CREATE[@]} tags..."
             git push origin "${TAGS_TO_CREATE[@]}"
+
+            # Sleep 2s for remote registration
+            sleep 2
 
             # Explicitly trigger release.yml for each new tag
             for tag in "${TAGS_TO_CREATE[@]}"; do
               echo "Triggering release.yml for ${tag}..."
               # Strip 'v' prefix since workflow_dispatch expects the version without 'v'
               version_without_v="${tag#v}"
-              gh workflow run release.yml -f pi_version="${version_without_v}" --repo "$GITHUB_REPOSITORY" || true
+              gh workflow run release.yml --ref "$tag" -f pi_version="${version_without_v}" --repo "$GITHUB_REPOSITORY" || true
+              sleep 2
             done
           fi
 
@@ -119,23 +141,26 @@ jobs:
 
       - name: Summary
         if: always()
+        env:
+          CREATED_COUNT: ${{ steps.process_tags.outputs.created_count }}
+          SKIPPED_EXISTING: ${{ steps.process_tags.outputs.skipped_existing }}
+          SKIPPED_NOT_ON_PYPI: ${{ steps.process_tags.outputs.skipped_not_on_pypi }}
+          TAGS_CREATED_JSON: ${{ steps.process_tags.outputs.tags_created_json }}
         run: |
           echo "## PI Tag Sync Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          CREATED_COUNT=${{ steps.process_tags.outputs.created_count }}
-          SKIPPED_EXISTING=${{ steps.process_tags.outputs.skipped_existing }}
-          SKIPPED_NOT_ON_PYPI=${{ steps.process_tags.outputs.skipped_not_on_pypi }}
-          TAGS_CREATED_JSON="${{ steps.process_tags.outputs.tags_created_json }}"
+          CREATED_COUNT="${CREATED_COUNT:-0}"
+          SKIPPED_EXISTING="${SKIPPED_EXISTING:-0}"
+          SKIPPED_NOT_ON_PYPI="${SKIPPED_NOT_ON_PYPI:-0}"
+          TAGS_CREATED_JSON="${TAGS_CREATED_JSON:-[]}"
 
           if [[ "$CREATED_COUNT" -gt 0 ]]; then
             echo "### 🎉 New Tags Created" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
             echo "$TAGS_CREATED_JSON" | jq -r '.[]' | while read -r tag; do
-              echo "  • $tag → [Build workflow](https://github.com/${{ github.repository }}/actions?query=workflow%3Arelease+tag%3A$tag)" >> $GITHUB_STEP_SUMMARY
+              echo "- **$tag** → [Build workflow](https://github.com/${{ github.repository }}/actions?query=workflow%3Arelease+tag%3A$tag)" >> $GITHUB_STEP_SUMMARY
             done
-            echo '```' >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "Triggered \`release.yml\` builds for $CREATED_COUNT new tag(s)." >> $GITHUB_STEP_SUMMARY
           else
