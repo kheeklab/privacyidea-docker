@@ -38,13 +38,14 @@ function generate_pi_config {
         if [ -z "$var_value" ]; then
             echo "[ERROR] $var_name should be defined"
             exit 1
-        else
-            # Remove single, double quotes and spaces
-            var_value=${var_value//\'/}
-            var_value=${var_value//\"/}
-            var_value=${var_value// /}
-            eval "$var_name='$var_value'"
         fi
+
+        # Remove single, double quotes and spaces that would corrupt the URI.
+        # Use printf -v instead of eval so the value is never executed.
+        var_value=${var_value//\'/}
+        var_value=${var_value//\"/}
+        var_value=${var_value// /}
+        printf -v "$var_name" '%s' "$var_value"
     }
 
     if [ -z "$SQLALCHEMY_DATABASE_URI" ]; then
@@ -75,9 +76,9 @@ function generate_pi_config {
                 fi
                 ;;
 
-            *)
+            "sqlite" | "")
                 echo ""
-                echo "[WARNING] PI_DB_VENDOR environment variable is not set. Using default SQLite..."
+                echo "[INFO] Using SQLite database."
                 echo ""
 
                 # Validate PI_DATA_DIR exists and is writable before using SQLite
@@ -93,22 +94,35 @@ function generate_pi_config {
                 # Define the SQLAlchemy database URI for SQLite
                 export SQLALCHEMY_DATABASE_URI=sqlite:////${PI_DATA_DIR}/privacyidea.db
                 ;;
+            *)
+                echo ""
+                echo "[ERROR] Unsupported PI_DB_VENDOR '${PI_DB_VENDOR}'. Supported values: mariadb, mysql, postgresql, sqlite."
+                echo ""
+                exit 1
+                ;;
         esac
     fi
 
-    # Check if the configuration file already exists
-    if [ ! -f "${PI_CFG_DIR}/pi.cfg" ]; then
-        # Check if SQLALCHEMY_DATABASE_URI is defined
-        if [ -z "$SQLALCHEMY_DATABASE_URI" ]; then
-            echo ""
-            echo "[WARNING] SQLALCHEMY_DATABASE_URI is undefined"
-            echo ""
-        else
-            # Use the pi-config.template file as a template and substitute the necessary variables
-            envsubst < /opt/templates/pi-config.template > "${PI_CFG_DIR}/pi.cfg"
-        fi
+    # Always (re)generate the config from the template. pi.cfg is generated
+    # output driven by environment variables, never hand-edited, so environment
+    # changes must be reflected on every start. Use PI_CFG_FILE so the written
+    # path matches what gunicorn loads.
+    if [ -z "$SQLALCHEMY_DATABASE_URI" ]; then
+        echo ""
+        echo "[WARNING] SQLALCHEMY_DATABASE_URI is undefined"
+        echo ""
+    else
+        # Use the pi-config.template file as a template and substitute the necessary variables
+        envsubst < /opt/templates/pi-config.template > "${PI_CFG_DIR}/${PI_CFG_FILE}.tmp"
+        mv "${PI_CFG_DIR}/${PI_CFG_FILE}.tmp" "${PI_CFG_DIR}/${PI_CFG_FILE}"
     fi
     
+    # Normalize PI_LOGLEVEL to a valid logging level name before editing the
+    # YAML; an unset or arbitrary value would corrupt the sed replacement.
+    case "${PI_LOGLEVEL:-INFO}" in
+        DEBUG|INFO|WARNING|ERROR|CRITICAL) ;;
+        *) PI_LOGLEVEL=INFO ;;
+    esac
     # Update the log level
     sed -i -e "s/level: .*/level: ${PI_LOGLEVEL}/g" /opt/privacyidea/pi-logging.yml
 
@@ -164,7 +178,7 @@ function prestart_privacyidea {
         tree --noreport "${PI_MOUNT_DIR}/files"
         echo ""
         echo "[privacyIDEA] ... into ${PI_HOME}."
-        cp -RL "${PI_MOUNT_DIR}/files/"* "${PI_HOME}"
+        cp -RL "${PI_MOUNT_DIR}/files/." "${PI_HOME}/"
         echo ""
     else
         echo ""
