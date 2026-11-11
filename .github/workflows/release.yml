@@ -1,4 +1,4 @@
-name: buildx
+name: release
 
 on:
   push:
@@ -6,243 +6,563 @@ on:
       - 'v*'
     branches:
       - main
-  pull_request:
   workflow_dispatch:
     inputs:
       pi_version:
-        description: 'PI version tag'
+        description: 'privacyIDEA version without the v prefix (must match the selected tag ref)'
         required: true
+        type: string
 
-permissions:
-  contents: write
-  packages: write
-  security-events: write
+# No permissions by default. Every job grants only what it needs, and pull
+# requests are handled by ci.yml, so untrusted code never reaches this file.
+permissions: {}
+
+env:
+  PI_MIN_SUPPORTED_VERSION: '3.14'
 
 jobs:
-  buildx:
-    runs-on: ubuntu-latest
+  validate:
+    name: Validate release input
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+      channel: ${{ steps.validate.outputs.channel }}
+      staging_tag: ${{ steps.validate.outputs.staging_tag }}
+      sha_short: ${{ steps.validate.outputs.sha_short }}
+      publish: ${{ steps.publish.outputs.publish }}
     steps:
-      # Step 1: Checkout the code
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
 
-      # Step 2: Determine and resolve PI version
-      - name: Determine PI version
-        id: pi_version
+      - name: Validate ref and version
+        id: validate
         shell: bash
         env:
-          PI_VERSION_INPUT: ${{ github.event.inputs.pi_version }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_REF: ${{ github.ref }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ github.event.inputs.pi_version }}
+          PI_MIN_SUPPORTED_VERSION: ${{ env.PI_MIN_SUPPORTED_VERSION }}
         run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            VERSION="$PI_VERSION_INPUT"
-          elif [[ $GITHUB_REF == refs/tags/* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
+          set -euo pipefail
+
+          fail() {
+            echo "::error::$*" >&2
+            exit 1
+          }
+
+          version_regex='^[0-9]+\.[0-9]+(\.[0-9]+)?$'
+          tag_regex='^v[0-9]+\.[0-9]+(\.[0-9]+)?$'
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            [[ "$REF_TYPE" == "tag" ]] || fail "workflow_dispatch must target a release tag ref, got ${EVENT_REF}"
+            [[ "$REF_NAME" =~ $tag_regex ]] || fail "ref ${REF_NAME} is not a release tag"
+            version="${REF_NAME#v}"
+            [[ -n "$INPUT_VERSION" ]] || fail "pi_version input is required"
+            [[ "$INPUT_VERSION" == "$version" ]] || fail "pi_version ${INPUT_VERSION} does not match ref ${REF_NAME}"
+            channel=release
+          elif [[ "$EVENT_NAME" == "push" && "$REF_TYPE" == "tag" ]]; then
+            [[ "$REF_NAME" =~ $tag_regex ]] || fail "ref ${REF_NAME} is not a release tag"
+            version="${REF_NAME#v}"
+            channel=release
+          elif [[ "$EVENT_NAME" == "push" && "$EVENT_REF" == "refs/heads/main" ]]; then
+            channel=edge
+            version=$(curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused \
+              https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version')
+            [[ "$version" =~ $version_regex ]] || fail "resolved PyPI version ${version} is not a release version"
           else
-            VERSION="main"
+            fail "unsupported event/ref: ${EVENT_NAME} ${EVENT_REF}"
           fi
 
-          # Resolve "main" to actual PyPI version for deterministic builds
-          if [[ "$VERSION" == "main" ]]; then
-            curl -fsSL -o /tmp/privacyidea-pypi.json https://pypi.org/pypi/privacyIDEA/json
-            VERSION=$(jq -r '.info.version' /tmp/privacyidea-pypi.json)
-            echo "Resolved main to PyPI version: ${VERSION}"
+          if [[ "$channel" == "release" ]]; then
+            [[ "$version" =~ $version_regex ]] || fail "version ${version} is not a valid release version"
+            highest=$(printf '%s\n%s\n' "$PI_MIN_SUPPORTED_VERSION" "$version" | sort -V | tail -1)
+            [[ "$highest" == "$version" ]] || fail "version ${version} is below the supported floor ${PI_MIN_SUPPORTED_VERSION}"
           fi
 
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          sha_short="${GITHUB_SHA:0:12}"
+          [[ "$sha_short" =~ ^[0-9a-f]{12}$ ]] || fail "unexpected SHA ${GITHUB_SHA}"
 
-      # Step 3: Use this repository owner as the image namespace
-      - name: Determine image names
-        id: images
+          {
+            echo "version=$version"
+            echo "channel=$channel"
+            echo "staging_tag=sha-${sha_short}"
+            echo "sha_short=$sha_short"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "channel=${channel} version=${version} staging_tag=sha-${sha_short}"
+
+      # A GitHub release is the publication ledger. If it exists, the version
+      # was fully published; retries and re-dispatches are no-ops.
+      - name: Decide whether to publish
+        id: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANNEL: ${{ steps.validate.outputs.channel }}
+          VERSION: ${{ steps.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          publish=true
+          if [[ "$CHANNEL" == "release" ]]; then
+            if gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "v${VERSION} already has a release; publication is idempotent and will be skipped"
+              publish=false
+            fi
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build staging image
+    needs: validate
+    if: needs.validate.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.staging.outputs.digest }}
+      sha_short: ${{ needs.validate.outputs.sha_short }}
+      dockerhub: ${{ steps.targets.outputs.dockerhub }}
+      namespace: ${{ steps.targets.outputs.namespace }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: all
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Staging tags are build identities, never consumer tags. Docker Hub
+      # staging is required because a cross-registry index copy is not proven;
+      # see the deviation note in the pull request and PERS-56 ADR-003.
+      - name: Resolve staging targets
+        id: targets
         shell: bash
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
+          STAGING_TAG: ${{ needs.validate.outputs.staging_tag }}
         run: |
+          set -euo pipefail
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           namespace="${DOCKERHUB_NAMESPACE:-$owner}"
-          dockerhub_enabled=false
+          dockerhub=false
+          if [[ -n "$DOCKERHUB_USERNAME" && -n "$DOCKERHUB_TOKEN" ]]; then
+            dockerhub=true
+          fi
           {
-            echo 'names<<EOF'
-            if [[ -n "$DOCKERHUB_USERNAME" && -n "$DOCKERHUB_TOKEN" ]]; then
-              echo "${namespace,,}/privacyidea"
-              dockerhub_enabled=true
+            echo 'tags<<EOF'
+            echo "ghcr.io/${owner}/privacyidea:${STAGING_TAG}"
+            if [[ "$dockerhub" == "true" ]]; then
+              echo "${namespace,,}/privacyidea:${STAGING_TAG}"
             fi
-            echo "ghcr.io/$owner/privacyidea"
             echo 'EOF'
-            echo "ghcr=ghcr.io/$owner/privacyidea"
-            echo "dockerhub_enabled=$dockerhub_enabled"
+            echo "dockerhub=${dockerhub}"
+            echo "namespace=${namespace,,}"
+            echo "owner=${owner}"
           } >> "$GITHUB_OUTPUT"
 
-      # Step 4: Extract metadata for Docker
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v6
-        with:
-          flavor: |
-            latest=false
-          images: ${{ steps.images.outputs.names }}
-          tags: |
-            type=ref,event=tag
-            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
-            type=raw,value=${{ steps.pi_version.outputs.version }}
-            type=raw,value=${{ steps.pi_version.outputs.version }}-{{date 'YYYYMMDD'}}
-
-      # Step 5: Set up QEMU for multi-platform builds
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: all
-
-      # Step 6: Set up Docker Buildx
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-        with:
-          driver-opts: |
-            network=host
-
-      # Step 7: Login to DockerHub and GHCR
-      - name: Login to DockerHub
-        if: github.event_name != 'pull_request' && steps.images.outputs.dockerhub_enabled == 'true'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Login to GHCR
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 8: Lint Dockerfile
-      - name: Hadolint Action
-        uses: hadolint/hadolint-action@v3.5.0
+      - name: Log in to Docker Hub
+        if: steps.targets.outputs.dockerhub == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
         with:
-          format: sarif
-          output-file: hadolint-results.sarif
-          no-fail: true
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: hadolint-results.sarif
-          category: hadolint-dockerfile
-
-      # Step 8b: Lint shell scripts
-      - name: ShellCheck
-        uses: ludeeus/action-shellcheck@2.0.0
-        with:
-          scandir: .
-          additional_files: prebuildfs/usr/sbin/install_packages
-          severity: error
-
-      # Step 9: Build local image for tests
-      - name: Build test image
-        run: docker build --build-arg PI_VERSION=${{ steps.pi_version.outputs.version }} -t privacyidea:test .
-
-      # Step 10: Install container-structure-test
-      - name: Install container-structure-test
-        run: |
-          CST_VERSION=1.22.1
-          curl -fsSL -o /tmp/container-structure-test \
-            "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v${CST_VERSION}/container-structure-test-linux-amd64"
-          chmod +x /tmp/container-structure-test
-          sudo mv /tmp/container-structure-test /usr/local/bin/container-structure-test
-          container-structure-test version
-
-      # Step 11: Run container structure tests
-      - name: Container structure test
-        id: structure_test
-        run: |
-          set +e
-          container-structure-test test --image privacyidea:test --config structure-tests.yaml | tee structure-test.log
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -eq 0 ]; then
-            echo "result=passed" >> "$GITHUB_OUTPUT"
-          else
-            echo "result=failed" >> "$GITHUB_OUTPUT"
-          fi
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-
-      # Step 12: Run integration tests
-      - name: Integration test
-        id: integration_test
-        run: |
-          set +e
-          docker compose version
-          docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120 | tee compose-test.log
-          status=${PIPESTATUS[0]}
-          docker compose --file docker-compose-test.yml down -v || true
-          set -e
-          if [ "$status" -eq 0 ]; then
-            echo "result=passed" >> "$GITHUB_OUTPUT"
-          else
-            echo "result=failed" >> "$GITHUB_OUTPUT"
-          fi
-          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
-
-      # Step 13: Add test results to job summary
-      - name: Test summary
-        if: always()
-        run: |
-          structure_passed=$(grep -c -- "--- PASS" structure-test.log 2>/dev/null || true)
-          structure_failed=$(grep -c -- "--- FAIL" structure-test.log 2>/dev/null || true)
-
-          {
-            echo "## Test Results"
-            echo ""
-            echo "- Container structure test: ${{ steps.structure_test.outputs.result }}"
-            echo "  - Passed checks: ${structure_passed}"
-            echo "  - Failed checks: ${structure_failed}"
-            echo "- Compose integration test: ${{ steps.integration_test.outputs.result }}"
-            echo ""
-            echo "- Structure test exit code: ${{ steps.structure_test.outputs.exit_code }}"
-            echo "- Integration test exit code: ${{ steps.integration_test.outputs.exit_code }}"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      # Step 14: Enforce test pass
-      - name: Enforce structure test success
-        if: steps.structure_test.outputs.exit_code != '0'
-        run: |
-          echo "Container structure test failed"
-          exit 1
-
-      - name: Enforce integration test success
-        if: steps.integration_test.outputs.exit_code != '0'
-        run: |
-          echo "Integration test failed"
-          exit 1
-
-      # Step 15: Build and Push to configured registries
-      - name: Build and push
-        if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@v7
+      - name: Build and push staging image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
           platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.targets.outputs.tags }}
           build-args: |
-            PI_VERSION=${{ steps.pi_version.outputs.version }}
+            PI_VERSION=${{ needs.validate.outputs.version }}
+          provenance: mode=max
+          sbom: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # Step 16: Run Trivy vulnerability scanner
-      - name: Run Trivy vulnerability scanner
-        if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Record staging digest
+        id: staging
+        shell: bash
+        env:
+          STAGING_TAG: ${{ needs.validate.outputs.staging_tag }}
+          OWNER: ${{ steps.targets.outputs.owner }}
+          DOCKERHUB_ENABLED: ${{ steps.targets.outputs.dockerhub }}
+          DOCKERHUB_NAMESPACE: ${{ steps.targets.outputs.namespace }}
+        run: |
+          set -euo pipefail
+          ghcr_ref="ghcr.io/${OWNER}/privacyidea:${STAGING_TAG}"
+          digest=$(docker buildx imagetools inspect "$ghcr_ref" --format '{{.Manifest.Digest}}')
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
+            echo "Unexpected staging digest for ${ghcr_ref}: ${digest}" >&2
+            exit 1
+          }
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "staging ${ghcr_ref} ${digest}"
+          if [[ "$DOCKERHUB_ENABLED" == "true" ]]; then
+            dockerhub_ref="${DOCKERHUB_NAMESPACE}/privacyidea:${STAGING_TAG}"
+            dockerhub_digest=$(docker buildx imagetools inspect "$dockerhub_ref" --format '{{.Manifest.Digest}}')
+            echo "staging ${dockerhub_ref} ${dockerhub_digest}"
+          fi
+
+  test:
+    name: Test ${{ matrix.arch }} staging image
+    needs: [validate, build]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
-          image-ref: ${{ steps.images.outputs.ghcr }}:${{ steps.pi_version.outputs.version }}
-          format: 'table'
-          exit-code: '0'
-          severity: 'CRITICAL,HIGH'
+          persist-credentials: false
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v3
-        if: github.ref_type == 'tag'
+      - name: Log in to GHCR (read only)
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Pull the exact tested index digest on a native runner. No image is
+      # rebuilt here, so the tested manifests are the published manifests.
+      - name: Pull staging image by digest
+        shell: bash
+        env:
+          STAGING_DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          docker pull "ghcr.io/${owner}/privacyidea@${STAGING_DIGEST}"
+          docker tag "ghcr.io/${owner}/privacyidea@${STAGING_DIGEST}" privacyidea:test
 
+      - name: Install container-structure-test
+        env:
+          CST_VERSION: 1.22.1
+          CST_AMD64_SHA256: fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca
+          CST_ARM64_SHA256: 801826ed107222120eb6df8c143b7de752cfebbe3aebfeea576e7098486917c2
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64) arch=amd64; sha="$CST_AMD64_SHA256" ;;
+            aarch64|arm64) arch=arm64; sha="$CST_ARM64_SHA256" ;;
+            *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+          binary="/tmp/container-structure-test"
+          curl -fsSL -o "$binary" \
+            "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v${CST_VERSION}/container-structure-test-linux-${arch}"
+          echo "${sha}  ${binary}" | sha256sum -c -
+          chmod +x "$binary"
+          sudo install -m 0755 "$binary" /usr/local/bin/container-structure-test
+          container-structure-test version
+
+      - name: Container structure test
+        run: container-structure-test test --image privacyidea:test --config structure-tests.yaml
+
+      - name: Integration test
+        run: |
+          set -euo pipefail
+          docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120
+          docker compose --file docker-compose-test.yml down -v
+
+      - name: Assert installed privacyIDEA version
+        env:
+          EXPECTED_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          installed=$(docker run --rm --entrypoint /opt/privacyidea/bin/python privacyidea:test \
+            -c 'import importlib.metadata as m; print(m.version("privacyIDEA"))')
+          echo "expected=${EXPECTED_VERSION} installed=${installed}"
+          if [[ "$installed" != "$EXPECTED_VERSION" ]]; then
+            echo "Installed privacyIDEA ${installed} does not match requested ${EXPECTED_VERSION}" >&2
+            exit 1
+          fi
+
+      # Fixed CRITICAL findings block promotion; unfixed ones are reported but
+      # cannot block (base-image CVEs are not fixable here). Time-boxed
+      # exceptions belong in .trivyignore with an owner and expiry comment.
+      - name: Trivy scan (CRITICAL gate)
+        uses: aquasecurity/trivy-action@a9c7b0f06e461e9d4b4d1711f154ee024b8d7ab8 # v0.36.0
+        with:
+          image-ref: privacyidea:test
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          exit-code: '1'
+          vuln-type: os,library
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@f3bbb05694c2f74569081c28664c0866d64dec21 # v4.39.3
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-${{ matrix.arch }}
+
+      - name: Cleanup compose stack
+        if: always()
+        run: docker compose --file docker-compose-test.yml down -v || true
+
+  publish:
+    name: Promote tested image
+    needs: [validate, build, test]
+    if: needs.validate.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: write
+      packages: write
+    # Serialize publication so two releases cannot interleave latest/promotion.
+    concurrency:
+      group: release-publish
+      cancel-in-progress: false
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hub
+        if: needs.build.outputs.dockerhub == 'true'
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute target tags and latest ordering
+        id: targets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHANNEL: ${{ needs.validate.outputs.channel }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          SHA_SHORT: ${{ needs.validate.outputs.sha_short }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          sha_short="${SHA_SHORT:?}"
+          date_tag=$(date -u +%Y%m%d)
+          move_latest=false
+
+          if [[ "$CHANNEL" == "release" ]]; then
+            tags=("v${VERSION}" "${VERSION}" "${VERSION}-${date_tag}" "sha-${sha_short}")
+            mapfile -t released < <(
+              gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName \
+                --jq '.[].tagName' \
+                | sed 's/^v//' \
+                | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?$' \
+                | sort -V \
+                || true
+            )
+            current_max=""
+            if [[ ${#released[@]} -gt 0 ]]; then
+              current_max="${released[-1]}"
+            fi
+            if [[ -z "$current_max" ]]; then
+              move_latest=true
+            elif [[ "$VERSION" != "$current_max" ]]; then
+              highest=$(printf '%s\n%s\n' "$current_max" "$VERSION" | sort -V | tail -1)
+              [[ "$highest" == "$VERSION" ]] && move_latest=true
+            fi
+            echo "current latest release: ${current_max:-none}; move_latest=${move_latest}"
+          else
+            tags=("edge" "sha-${sha_short}")
+          fi
+
+          if [[ "$move_latest" == "true" ]]; then
+            tags+=(latest)
+          fi
+
+          {
+            echo 'tags<<EOF'
+            printf '%s\n' "${tags[@]}"
+            echo 'EOF'
+            echo "move_latest=${move_latest}"
+            echo "owner=${owner}"
+            echo "date_tag=${date_tag}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Promote GHCR tags
+        id: promote_ghcr
+        shell: bash
+        env:
+          OWNER: ${{ steps.targets.outputs.owner }}
+          TAGS: ${{ steps.targets.outputs.tags }}
+          STAGING_DIGEST: ${{ needs.build.outputs.digest }}
+          CHANNEL: ${{ needs.validate.outputs.channel }}
+        run: |
+          set -euo pipefail
+          repo="ghcr.io/${OWNER}/privacyidea"
+          source="${repo}@${STAGING_DIGEST}"
+          while IFS= read -r tag; do
+            [[ -n "$tag" ]] || continue
+            existing=$(docker buildx imagetools inspect "${repo}:${tag}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+            if [[ -n "$existing" && "$existing" == "$STAGING_DIGEST" ]]; then
+              echo "${tag}=${existing}" >> "$GITHUB_OUTPUT"
+              echo "${repo}:${tag} already points at the tested digest"
+              continue
+            fi
+            if [[ -n "$existing" && "$existing" != "$STAGING_DIGEST" ]]; then
+              if [[ "$CHANNEL" == "release" && "$tag" != "latest" && "$tag" != sha-* ]]; then
+                echo "::error::Refusing to overwrite published tag ${repo}:${tag} (${existing}) with ${STAGING_DIGEST}. Restoring or re-releasing an existing version needs a human-approved republish."
+                exit 1
+              fi
+            fi
+            docker buildx imagetools create --tag "${repo}:${tag}" "$source"
+            digest=$(docker buildx imagetools inspect "${repo}:${tag}" --format '{{.Manifest.Digest}}')
+            if [[ "$digest" != "$STAGING_DIGEST" ]]; then
+              echo "::error::Promoted ${repo}:${tag} digest ${digest} differs from tested staging digest ${STAGING_DIGEST}"
+              exit 1
+            fi
+            echo "${tag}=${digest}" >> "$GITHUB_OUTPUT"
+            echo "promoted ${repo}:${tag} ${digest}"
+          done <<< "$TAGS"
+
+      - name: Promote Docker Hub tags
+        id: promote_dockerhub
+        if: needs.build.outputs.dockerhub == 'true'
+        shell: bash
+        env:
+          NAMESPACE: ${{ needs.build.outputs.namespace }}
+          REPO_OWNER: ${{ steps.targets.outputs.owner }}
+          TAGS: ${{ steps.targets.outputs.tags }}
+          STAGING_TAG: ${{ needs.validate.outputs.staging_tag }}
+          CHANNEL: ${{ needs.validate.outputs.channel }}
+        run: |
+          set -euo pipefail
+          namespace="${NAMESPACE:-$REPO_OWNER}"
+          namespace="${namespace,,}"
+          repo="${namespace}/privacyidea"
+          staging_ref="${repo}:${STAGING_TAG}"
+          staging_digest=$(docker buildx imagetools inspect "$staging_ref" --format '{{.Manifest.Digest}}')
+          while IFS= read -r tag; do
+            [[ -n "$tag" ]] || continue
+            existing=$(docker buildx imagetools inspect "${repo}:${tag}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+            if [[ -n "$existing" && "$existing" == "$staging_digest" ]]; then
+              echo "${tag}=${existing}" >> "$GITHUB_OUTPUT"
+              echo "${repo}:${tag} already points at the tested digest"
+              continue
+            fi
+            if [[ -n "$existing" && "$existing" != "$staging_digest" ]]; then
+              if [[ "$CHANNEL" == "release" && "$tag" != "latest" && "$tag" != sha-* ]]; then
+                echo "::error::Refusing to overwrite published tag ${repo}:${tag} (${existing}) with ${staging_digest}. Restoring or re-releasing an existing version needs a human-approved republish."
+                exit 1
+              fi
+            fi
+            docker buildx imagetools create --tag "${repo}:${tag}" "$staging_ref"
+            digest=$(docker buildx imagetools inspect "${repo}:${tag}" --format '{{.Manifest.Digest}}')
+            if [[ "$digest" != "$staging_digest" ]]; then
+              echo "::error::Promoted ${repo}:${tag} digest ${digest} differs from tested staging digest ${staging_digest}"
+              exit 1
+            fi
+            echo "${tag}=${digest}" >> "$GITHUB_OUTPUT"
+            echo "promoted ${repo}:${tag} ${digest}"
+          done <<< "$TAGS"
+
+      - name: Write release notes
+        id: notes
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          CHANNEL: ${{ needs.validate.outputs.channel }}
+          STAGING_DIGEST: ${{ needs.build.outputs.digest }}
+          TAGS: ${{ steps.targets.outputs.tags }}
+          OWNER: ${{ steps.targets.outputs.owner }}
+          DOCKERHUB_ENABLED: ${{ needs.build.outputs.dockerhub }}
+          GHCR_TAGS: ${{ toJSON(steps.promote_ghcr.outputs) }}
+          DOCKERHUB_TAGS: ${{ toJSON(steps.promote_dockerhub.outputs) }}
+        run: |
+          set -euo pipefail
+          notes="$RUNNER_TEMP/release-notes.md"
+          {
+            echo "privacyIDEA ${VERSION} image published from commit ${GITHUB_SHA}."
+            echo
+            echo "| Registry | Tag | Digest |"
+            echo "| :-- | :-- | :-- |"
+            echo "$TAGS" | while IFS= read -r tag; do
+              [[ -n "$tag" ]] || continue
+              ghcr_digest=$(echo "$GHCR_TAGS" | jq -r --arg t "$tag" '.[$t] // empty')
+              echo "| GHCR | \`${tag}\` | \`${ghcr_digest:-not-published}\` |"
+            done
+            if [[ "$DOCKERHUB_ENABLED" == "true" ]]; then
+              echo "$TAGS" | while IFS= read -r tag; do
+                [[ -n "$tag" ]] || continue
+                hub_digest=$(echo "$DOCKERHUB_TAGS" | jq -r --arg t "$tag" '.[$t] // empty')
+                echo "| Docker Hub | \`${tag}\` | \`${hub_digest:-not-published}\` |"
+              done
+            fi
+            echo
+            echo "Both platform images were tested on native amd64 and arm64 runners before promotion. The tested GHCR index digest is \`${STAGING_DIGEST}\`."
+            if [[ "$CHANNEL" == "edge" ]]; then
+              echo
+              echo "This is an \`edge\` build from \`main\`; it is not a stable release."
+            fi
+          } > "$notes"
+          echo "path=${notes}" >> "$GITHUB_OUTPUT"
+          cat "$notes" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub release
+        if: needs.validate.outputs.channel == 'release'
+        uses: softprops/action-gh-release@28ab305d0ffa26d60ec4bd614126329e26c7a0ec # v3.0.4
+        with:
+          tag_name: v${{ needs.validate.outputs.version }}
+          name: privacyIDEA ${{ needs.validate.outputs.version }}
+          body_path: ${{ steps.notes.outputs.path }}
+          make_latest: ${{ steps.targets.outputs.move_latest }}
+          draft: false
+          prerelease: false
+
+      - name: Publication summary
+        if: always()
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          CHANNEL: ${{ needs.validate.outputs.channel }}
+          MOVE_LATEST: ${{ steps.targets.outputs.move_latest }}
+        run: |
+          {
+            echo "## Publication"
+            echo
+            echo "- Channel: ${CHANNEL}"
+            echo "- Version: ${VERSION}"
+            echo "- latest moved: ${MOVE_LATEST:-unknown}"
+          } >> "$GITHUB_STEP_SUMMARY"
