@@ -67,14 +67,18 @@ Run with: `container-structure-test test --image mr-ssd/privacyidea:dev --config
 `docker-compose-test.yml` spins up the container and a test script (`run-tests.sh`) that waits for privacyIDEA to be ready and verifies the page title.
 
 ### CI/CD Workflow
-`.github/workflows/release.yml` runs on every push to main and on tags:
-1. Lints Dockerfile with hadolint
-2. Builds image with specified PI_VERSION
-3. Runs container-structure-test
-4. Runs docker-compose integration test
-5. Builds and pushes multi-platform images (amd64, arm64) to Docker Hub and GHCR
-6. Runs Trivy vulnerability scanner
-7. Creates GitHub release on tags
+`.github/workflows/ci.yml` runs on pull requests only: hadolint, shellcheck, actionlint, then builds and tests amd64 and arm64 natively with no secrets or write token.
+
+`.github/workflows/release.yml` runs on pushes to `main`, `v*` tags, and validated manual dispatches:
+1. Validates the ref/version and supported floor before any credential exists
+2. Builds one multi-platform index (amd64, arm64) and pushes it to a `sha-<12>` staging tag with SBOM and max provenance
+3. Tests the staging digest natively on amd64 and arm64: structure tests, compose integration test, installed-version assertion, Trivy CRITICAL gate
+4. Promotes the tested digest to version tags, `latest` (forward-only), or `edge` in a serialized publish job
+5. Records published digests in the GitHub release
+
+Tag semantics: version tags come only from release refs and are never overwritten; `main` writes `edge` and `sha-<12>`. See `README.md` for the consumer-facing table.
+
+`.github/workflows/check-pi-version.yml` runs daily, creates missing `v*` tags for privacyIDEA releases at or above the support floor, dispatches `release.yml` explicitly (GITHUB_TOKEN tag pushes do not trigger workflows), verifies the queued run, and re-dispatches tags that have no GitHub release.
 
 ## Version Resolution
 When `PI_VERSION=main` or empty, the builder stage fetches the latest version from PyPI using `curl` and `jq`.

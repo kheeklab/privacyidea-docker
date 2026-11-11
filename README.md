@@ -23,14 +23,20 @@ The image is stored in below registries:
 
 ### Tags
 
-The image tags are following privacyIDEA version e.g. `3.14` and `latest`. The default tag is `latest` is not suitable for production environments as it might not test all use cases.
+Version tags identify a released privacyIDEA version and are never rewritten by later builds. `main` publishes only the moving `edge` channel, so use `edge` if you want the newest unreleased code.
 
 This image targets privacyIDEA 3.14 and newer. Kerberos extras are not installed: upstream dropped the separate `requirements-kerberos.txt` in 3.14.
 
-| Tag | Description |
-| :-- | :---------- |
-| `latest` | The latest image build from main branch |
-| `3.10` `3.10-python-3.12.7-bulseye`   | The image specified tag |
+| Tag | Written from | Description |
+| :-- | :-- | :---------- |
+| `latest` | Newest stable release | Highest released version. Moves forward only; an older release never moves it back. |
+| `X.Y` | Release `vX.Y` | Version alias, e.g. `3.14`. Rewritten only by a release of the same version. |
+| `X.Y.Z` | Release `vX.Y.Z` | Patch alias when upstream publishes a patch release. |
+| `vX.Y` `vX.Y.Z` | Release tag | Same image as `X.Y` / `X.Y.Z`. |
+| `X.Y-YYYYMMDD` | Release build date | Dated snapshot of that release, created once. |
+| `edge` | Every push to `main` | Moving development channel for the newest `main` build. Not a release; may be unstable. |
+| `sha-<12>` | Every build | Immutable build identity: the first 12 characters of the commit SHA. |
+
 
 ## Building
 
