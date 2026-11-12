@@ -140,8 +140,10 @@ jobs:
             version="${tag#v}"
 
             # No "|| true": a failed dispatch must fail this run.
+            # channel is explicit so the dispatch does not depend on the
+            # workflow input default staying `release`.
             if ! gh workflow run release.yml --repo "$GITHUB_REPOSITORY" \
-              --ref "$tag" -f pi_version="$version"; then
+              --ref "$tag" -f channel=release -f pi_version="$version"; then
               echo "::error::Failed to dispatch release.yml for ${tag}"
               exit 1
             fi
@@ -218,7 +220,7 @@ jobs:
             fi
 
             if ! gh workflow run release.yml --repo "$GITHUB_REPOSITORY" \
-              --ref "$tag" -f pi_version="$version"; then
+              --ref "$tag" -f channel=release -f pi_version="$version"; then
               echo "::error::Failed to re-dispatch release.yml for ${tag}"
               exit 1
             fi

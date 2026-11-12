@@ -29,7 +29,7 @@ docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut
 docker compose --file docker-compose-test.yml down -v
 ```
 
-Release pipeline in `.github/workflows/release.yml` (push to `main`, `v*` tags, validated manual dispatch): builds one multi-platform staging index, tests the exact digest natively on amd64 and arm64, then promotes it in a serialized publish job. Lint is hadolint with `failure-threshold: error`, shellcheck at `warning`, and actionlint. Version tags come only from release refs; `main` publishes `edge` and `sha-<12>`. Trivy is a blocking CRITICAL gate with `ignore-unfixed` and `.trivyignore` exceptions. `.github/workflows/check-pi-version.yml` runs daily, creates missing `v*` tags at or above the 3.14 floor, dispatches release.yml, verifies the queued run, and re-dispatches tags that have no GitHub release.
+Release pipeline in `.github/workflows/release.yml` (push to `main`, `v*` tags, validated manual dispatch): builds one multi-platform staging index, tests the exact digest natively on amd64 and arm64, then promotes it in a serialized publish job. Manual dispatch is `channel=release` on a `v*` tag (with matching `pi_version`) or `channel=edge` on `main`; routing and rejection messages live in `.github/scripts/resolve-release-input.sh` and are tested by `bash tests/test-release-input.sh`. Lint is hadolint with `failure-threshold: error`, shellcheck at `warning`, and actionlint. Version tags come only from release refs; `main` publishes `edge` and `sha-<12>`. Trivy is a blocking CRITICAL gate with `ignore-unfixed` and `.trivyignore` exceptions. `.github/workflows/check-pi-version.yml` runs daily, creates missing `v*` tags at or above the 3.14 floor, dispatches release.yml, verifies the queued run, and re-dispatches tags that have no GitHub release.
 
 ## Repository map
 
@@ -41,7 +41,7 @@ Makefile                   build/push/run/test/cleanup/help targets
 requirements.txt           psycopg2==2.9.10, gunicorn==23.0.0 (added to the venv)
 structure-tests.yaml       schemaVersion 2.0.0 (CI runs container-structure-test v1.22.1): metadata (env defaults, user nobody, workdir, entrypoint, port 8080, volume), file existence/permissions, bash -n syntax checks, logging/audit template assertions
 run-tests.sh               integration check: waits for pi-app:8080, checks /healthz/readyz HTTP 200 and status "ready", then follows / redirect to /app/v2/ and checks privacyIDEA page content
-tests/                     test-db-uri-encoding.sh: PI_DB_PASSWORD round-trips through one jq @uri encoding
+tests/                     test-db-uri-encoding.sh: PI_DB_PASSWORD round-trips through one jq @uri encoding; test-release-input.sh: release dispatch channel/ref/version routing (18 cases, no network)
 README.md                  user-facing docs (partially drifted — see below)
 CLAUDE.md                  Claude-Code-specific guide (partially drifted — see below)
 prebuildfs/                /usr/sbin/install_packages helper sourced at Dockerfile:39/41
@@ -50,7 +50,8 @@ rootfs/opt/privacyidea/    gunicorn_conf.py, pi-logging.yml
 rootfs/opt/templates/      pi-config.template
 example/                   docker-compose-posgresql.yml
 .github/workflows/         ci.yml (PR CI), release.yml (release pipeline), check-pi-version.yml (daily tag sync)
-docs/release-runbook.md    release preconditions, partial-publication recovery, latest repair, retention
+.github/scripts/           resolve-release-input.sh: release.yml dispatch ref/channel/version routing and rejection messages
+docs/release-runbook.md    release preconditions, manual dispatch targets, partial-publication recovery, latest repair, retention
 ```
 
 ## Runtime contract

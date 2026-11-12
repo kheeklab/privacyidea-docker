@@ -21,6 +21,41 @@ gh workflow run release.yml --ref v3.14.1 -f pi_version=3.14.1
 
 The workflow validates the ref and version before any credential is used, builds one multi-platform index under a run-scoped staging tag (`stg-<run-id>-<attempt>-<version>`), tests that digest natively on amd64 and arm64, then promotes it in a serialized publish job. Version tags are refused if a different digest already exists.
 
+## Manual dispatch targets
+
+`workflow_dispatch` takes two inputs: `channel` (`release` or `edge`, default `release`) and `pi_version` (release only). GitHub does not let a workflow restrict the branch/tag dropdown, so the supported combinations are enforced by `Validate release input` (`.github/scripts/resolve-release-input.sh`) before any credential is used.
+
+| Ref selected in "Use workflow from" | `channel` | `pi_version` | Outcome |
+| :-- | :-- | :-- | :-- |
+| Release tag `v<version>` | `release` (default) | Required, must equal the tag version | Release: GHCR and Docker Hub version tags, GitHub release, `latest` when it is the highest version |
+| `main` | `edge` | Must be omitted | Edge: GHCR `edge` and `sha-<12>` only |
+| Any other branch | either | — | Rejected with the commands below |
+| Release tag `v<version>` | `edge` | — | Rejected: edge builds come from `main` |
+| `main` | `release` (default) | — | Rejected: a release needs a tag ref |
+
+```console
+# Release v3.14.1 (tag must already exist; the feeder creates tags)
+gh workflow run release.yml --ref v3.14.1 -f pi_version=3.14.1
+
+# Rebuild the edge channel from the current main HEAD
+gh workflow run release.yml --ref main -f channel=edge
+```
+
+An edge dispatch resolves the version from PyPI, runs the same build, native tests and CRITICAL Trivy gate, and writes only the mutable `edge` and `sha-<12>` GHCR tags. It never creates a GitHub release, never logs in to Docker Hub, and never moves `latest`.
+
+### A rejected dispatch
+
+A rejected dispatch fails in `Validate release input` and does nothing else: no build, no test, no registry write, no release. The annotation names the fix.
+
+| Message | Fix |
+| :-- | :-- |
+| `release dispatch must target a release tag` | Select the `v<version>` tag as the ref, or dispatch `--ref main -f channel=edge` for an edge build |
+| `pi_version input is required for release dispatch` | Add `-f pi_version=<version>` matching the tag |
+| `pi_version <x> does not match ref v<y>` | Correct `pi_version` or select the matching tag |
+| `edge dispatch must target the main branch` | Use `--ref main` for `channel=edge` |
+| `pi_version must be omitted for channel=edge` | Drop the `pi_version` input; edge installs the current PyPI release |
+| `unsupported channel input` | Use `release` or `edge` |
+
 ## Failure handling
 
 ### Promotion failed after some tags were written
