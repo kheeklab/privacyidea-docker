@@ -147,7 +147,7 @@ jobs:
           INTENTS_REMOTE_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
           INTENT_STORE_DIR: ${{ runner.temp }}/release-intents
           REBUILD_INTENT_MAX_AGE_DAYS: ${{ env.REBUILD_INTENT_MAX_AGE_DAYS }}
-        run: .github/scripts/promote-release.sh reserve
+        run: bash .github/scripts/promote-release.sh reserve
 
   build:
     name: Build staging image
@@ -522,7 +522,7 @@ jobs:
           INTENT_STORE_DIR: ${{ runner.temp }}/release-intents
           JOURNAL: ${{ runner.temp }}/promotion-journal.md
           REBUILD_INTENT_MAX_AGE_DAYS: ${{ env.REBUILD_INTENT_MAX_AGE_DAYS }}
-        run: .github/scripts/promote-release.sh promote
+        run: bash .github/scripts/promote-release.sh promote
 
       # The notes state the upstream version, the installed distribution
       # version as tested, the image release identifier and the tested digest
