@@ -1,2 +1,11 @@
 psycopg2==2.9.13
 gunicorn==26.2.0
+
+# privacyIDEA 3.14's hash-pinned requirements file installs certifi==2026.7.22,
+# which bundles emSign roots whose intermediate CA keys are compromised
+# (GHSA-6q48-6c7w-9gw2, CRITICAL). This file is installed last in the builder
+# stage, so pinning certifi here upgrades the already-installed transitive
+# dependency. 2026.10.19 is the first release that both drops the compromised
+# roots and restores the unaffected emSign roots; requests 2.34.2 only requires
+# certifi>=2023.5.7, so the upgrade is compatible.
+certifi==2026.10.19
