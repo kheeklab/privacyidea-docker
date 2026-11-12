@@ -87,7 +87,8 @@ today="${TODAY_UTC:-$(utc_today)}"
 is_numeric_version "$version" || fail "version '${version}' is not a numeric release version"
 
 inspect_err="${TMPDIR:-/tmp}/release-inspect-$$.err"
-trap 'rm -f "$inspect_err" "$store_dir/.git-err" 2>/dev/null || true' EXIT
+git_err="${TMPDIR:-/tmp}/release-git-$$.err"
+trap 'rm -f "$inspect_err" "$git_err" 2>/dev/null || true' EXIT
 
 intent_dir() { printf '%s/intents/%s\n' "$store_dir" "$version"; }
 intent_path() { printf '%s/%s.json\n' "$(intent_dir)" "$1"; }
@@ -120,7 +121,7 @@ store_init() {
       } > "$store_dir/README.md"
     fi
   fi
-  mkdir -p "$store_dir/intents" "$store_dir/freeze"
+  mkdir -p "$(intent_dir)" "$store_dir/freeze"
   store_git config user.name "github-actions[bot]"
   store_git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 }
@@ -132,8 +133,8 @@ store_commit_push() {
     return 0
   fi
   store_git commit --quiet -m "$message"
-  if ! store_git push --quiet origin "HEAD:${intents_branch}" 2>"$store_dir/.git-err"; then
-    cat "$store_dir/.git-err" >&2 || true
+  if ! store_git push --quiet origin "HEAD:${intents_branch}" 2>"$git_err"; then
+    cat "$git_err" >&2 || true
     fail "could not record the release intent on ${intents_branch}: another run reserved or updated an identity concurrently. Nothing was published; inspect the intent ledger and re-run."
   fi
 }
