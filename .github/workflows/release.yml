@@ -133,6 +133,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Resolve GHCR target
+        id: targets
+        shell: bash
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "ghcr_repo=ghcr.io/${owner}/privacyidea" >> "$GITHUB_OUTPUT"
+
       - name: Reserve dated image identity
         id: reserve
         shell: bash
@@ -141,6 +148,7 @@ jobs:
           VERSION: ${{ needs.validate.outputs.version }}
           IDENTITY: ${{ needs.validate.outputs.identity }}
           REF_NAME: ${{ github.ref_name }}
+          GHCR_REPO: ${{ steps.targets.outputs.ghcr_repo }}
           REQUIREMENTS_REF: ${{ needs.validate.outputs.requirements_ref }}
           COMMIT_SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
@@ -513,6 +521,7 @@ jobs:
           GHCR_REPO: ${{ steps.targets.outputs.ghcr_repo }}
           HUB_ENABLED: 'true'
           HUB_REPO: ${{ steps.targets.outputs.hub_repo }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TESTED_DIGEST: ${{ steps.tested.outputs.digest }}
           HUB_DIGEST: ${{ needs.build.outputs.hub_digest || steps.tested.outputs.digest }}
           SHA_SHORT: ${{ needs.validate.outputs.sha_short }}

@@ -301,6 +301,29 @@ run: bash .github/scripts/promote-release.sh promote
 if: needs.validate.outputs.route == 'numeric'
 EOF
 
+# Check each invocation's own environment, not an unrelated step's inputs.
+for step in reserve promote; do
+  step_env=$(awk -v step="$step" '
+    $0 ~ "^        id: " step "$" { in_step=1; next }
+    in_step && /^      - name:/ { exit }
+    in_step { print }
+  ' "$workflow")
+  for variable in ROUTE VERSION GHCR_REPO INTENTS_REMOTE_URL INTENT_STORE_DIR; do
+    if ! grep -Eq "^[[:space:]]+${variable}: .+" <<< "$step_env"; then
+      echo "FAIL: ${step} step is missing ${variable}" >&2
+      wiring_failed=1
+    fi
+  done
+  if [[ "$step" == promote ]]; then
+    for variable in HUB_ENABLED HUB_REPO TESTED_DIGEST HUB_DIGEST SHA_SHORT GH_TOKEN; do
+      if ! grep -Eq "^[[:space:]]+${variable}: .+" <<< "$step_env"; then
+        echo "FAIL: ${step} step is missing ${variable}" >&2
+        wiring_failed=1
+      fi
+    done
+  fi
+done
+
 if [[ "$wiring_failed" -ne 0 ]]; then
   echo "release.yml wiring check failed, ${passed} case(s) passed" >&2
   exit 1
