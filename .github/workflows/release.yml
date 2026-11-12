@@ -342,16 +342,33 @@ jobs:
       # Fixed CRITICAL findings block promotion; unfixed ones are reported but
       # cannot block (base-image CVEs are not fixable here). Time-boxed
       # exceptions belong in .trivyignore with an owner and expiry comment.
-      - name: Trivy scan (CRITICAL gate)
+      #
+      # Two scans on purpose: trivy-action v0.36.0 unsets TRIVY_SEVERITY for
+      # SARIF output unless limit-severities-for-sarif is set, so a single
+      # SARIF step with exit-code 1 fails on every severity. This step only
+      # reports (exit-code 0) and feeds code scanning; the table step below is
+      # the sole blocking gate and does honour severity: CRITICAL.
+      - name: Trivy scan (SARIF for code scanning)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: privacyidea:test
           # Pin the scanner explicitly. The action's baked default (v0.70.0)
           # otherwise decides which scanner and vulnerability database the
-          # gate runs against, and can drift without a diff in this repo.
+          # scan runs against, and can drift without a diff in this repo.
           version: v0.76.2
           format: sarif
           output: trivy-results.sarif
+          ignore-unfixed: true
+          trivyignores: .trivyignore
+          exit-code: '0'
+          vuln-type: os,library
+
+      - name: Trivy scan (CRITICAL gate)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: privacyidea:test
+          version: v0.76.2
+          format: table
           severity: CRITICAL
           ignore-unfixed: true
           trivyignores: .trivyignore
