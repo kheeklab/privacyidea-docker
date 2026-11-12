@@ -346,6 +346,10 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: privacyidea:test
+          # Pin the scanner explicitly. The action's baked default (v0.70.0)
+          # otherwise decides which scanner and vulnerability database the
+          # gate runs against, and can drift without a diff in this repo.
+          version: v0.76.2
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL
