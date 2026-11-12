@@ -2,7 +2,7 @@
 ARG PI_VERSION=main
 ARG PI_HOME=/opt/privacyidea
 
-FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f AS builder
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS builder
 ARG PI_HOME
 ARG PI_VERSION
 RUN apt-get update && apt-get install -y curl jq python3-dev gcc libpq-dev libxslt-dev --no-install-recommends
@@ -24,7 +24,7 @@ RUN set -eux; \
     pip3 install -r /tmp/requirements.txt
 
 
-FROM python:3.14-slim@sha256:9aaa474097d094040649f2162a627c0049b408f52138d980916788d80f04802f
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 ARG PI_HOME
 LABEL maintainer="Sida Say <sida@kheek.com>"
 ENV PI_SKIP_BOOTSTRAP=false \
