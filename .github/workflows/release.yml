@@ -8,9 +8,16 @@ on:
       - main
   workflow_dispatch:
     inputs:
+      channel:
+        description: 'release (ref must be a v* tag) or edge (ref must be main)'
+        type: choice
+        options:
+          - release
+          - edge
+        default: release
       pi_version:
-        description: 'privacyIDEA version without the v prefix (must match the selected tag ref)'
-        required: true
+        description: 'Release channel only: privacyIDEA version without the v prefix; must match the selected tag ref. Omit for edge.'
+        required: false
         type: string
 
 # No permissions by default. Every job grants only what it needs, and pull
@@ -20,6 +27,18 @@ permissions: {}
 env:
   PI_MIN_SUPPORTED_VERSION: '3.14'
 
+# Supported invocations. Routing lives in .github/scripts/resolve-release-input.sh
+# and is regression-tested by tests/test-release-input.sh; operator guidance
+# lives in docs/release-runbook.md.
+#
+#   push of a v* tag                              -> release channel
+#   push to main                                  -> edge channel
+#   workflow_dispatch channel=release, ref v* tag  -> release channel
+#   workflow_dispatch channel=edge, ref main       -> edge channel
+#
+# Edge runs publish GHCR `edge` and `sha-<12>` only: no GitHub release, no
+# Docker Hub credentials, no `latest` move. Any other combination fails in
+# `validate` before a credential is used, naming the command that works.
 jobs:
   validate:
     name: Validate release input
@@ -45,66 +64,12 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_REF: ${{ github.ref }}
-          REF_TYPE: ${{ github.ref_type }}
-          REF_NAME: ${{ github.ref_name }}
+          EVENT_REF_TYPE: ${{ github.ref_type }}
+          EVENT_REF_NAME: ${{ github.ref_name }}
+          INPUT_CHANNEL: ${{ github.event.inputs.channel }}
           INPUT_VERSION: ${{ github.event.inputs.pi_version }}
           PI_MIN_SUPPORTED_VERSION: ${{ env.PI_MIN_SUPPORTED_VERSION }}
-        run: |
-          set -euo pipefail
-
-          fail() {
-            echo "::error::$*" >&2
-            exit 1
-          }
-
-          version_regex='^[0-9]+\.[0-9]+(\.[0-9]+)?$'
-          tag_regex='^v[0-9]+\.[0-9]+(\.[0-9]+)?$'
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            [[ "$REF_TYPE" == "tag" ]] || fail "workflow_dispatch must target a release tag ref, got ${EVENT_REF}"
-            [[ "$REF_NAME" =~ $tag_regex ]] || fail "ref ${REF_NAME} is not a release tag"
-            version="${REF_NAME#v}"
-            [[ -n "$INPUT_VERSION" ]] || fail "pi_version input is required"
-            [[ "$INPUT_VERSION" == "$version" ]] || fail "pi_version ${INPUT_VERSION} does not match ref ${REF_NAME}"
-            channel=release
-          elif [[ "$EVENT_NAME" == "push" && "$REF_TYPE" == "tag" ]]; then
-            [[ "$REF_NAME" =~ $tag_regex ]] || fail "ref ${REF_NAME} is not a release tag"
-            version="${REF_NAME#v}"
-            channel=release
-          elif [[ "$EVENT_NAME" == "push" && "$EVENT_REF" == "refs/heads/main" ]]; then
-            channel=edge
-            version=$(curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused \
-              https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version')
-            [[ "$version" =~ $version_regex ]] || fail "resolved PyPI version ${version} is not a release version"
-          else
-            fail "unsupported event/ref: ${EVENT_NAME} ${EVENT_REF}"
-          fi
-
-          if [[ "$channel" == "release" ]]; then
-            [[ "$version" =~ $version_regex ]] || fail "version ${version} is not a valid release version"
-            highest=$(printf '%s\n%s\n' "$PI_MIN_SUPPORTED_VERSION" "$version" | sort -V | tail -1)
-            [[ "$highest" == "$version" ]] || fail "version ${version} is below the supported floor ${PI_MIN_SUPPORTED_VERSION}"
-          fi
-
-          sha_short="${GITHUB_SHA:0:12}"
-          [[ "$sha_short" =~ ^[0-9a-f]{12}$ ]] || fail "unexpected SHA ${GITHUB_SHA}"
-
-          # One commit can build several versions (the feeder creates more than
-          # one v* ref at the same HEAD) and main resolves a moving PyPI
-          # version. A sha-only staging tag could be overwritten between build
-          # and promotion, so the staging identity carries the run and the
-          # version. sha-<12> remains a mutable consumer alias only.
-          staging_tag="stg-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${version}"
-          [[ "$staging_tag" =~ ^stg-[0-9]+-[0-9]+-[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || fail "unexpected staging tag ${staging_tag}"
-
-          {
-            echo "version=$version"
-            echo "channel=$channel"
-            echo "staging_tag=${staging_tag}"
-            echo "sha_short=$sha_short"
-          } >> "$GITHUB_OUTPUT"
-
-          echo "channel=${channel} version=${version} staging_tag=${staging_tag}"
+        run: .github/scripts/resolve-release-input.sh
 
       # A GitHub release is the publication ledger. If it exists, the version
       # was fully published; retries and re-dispatches are no-ops.
