@@ -3,181 +3,271 @@ name: Sync PI Tags
 on:
   schedule:
     - cron: '0 0 * * *' # Daily at midnight
-  workflow_dispatch: # Allows manually triggering
+  workflow_dispatch:
+
+# Only one sync may run at a time; a concurrent sync could dispatch the same
+# release twice.
+concurrency:
+  group: pi-tag-sync
+  cancel-in-progress: false
+
+env:
+  PI_MIN_SUPPORTED_VERSION: '3.14'
 
 jobs:
   sync-tags:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: write # Needed to create and push tags
-      actions: write  # Needed to trigger workflow dispatches
+      actions: write # Needed to trigger workflow dispatches
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Get PI tags
-        id: get-pi-tags
-        run: |
-          echo "Fetching upstream PI release tags..."
-          PI_TAGS=$(git ls-remote --tags --refs https://github.com/privacyidea/privacyidea.git \
-            | grep -oE 'refs/tags/v[0-9]+(\.[0-9]+)+$' \
-            | sed 's|refs/tags/||')
-
-          if [[ -z "$PI_TAGS" ]]; then
-            echo "Error: Failed to fetch upstream tags" >&2
-            exit 1
-          fi
-
-          # Convert newlines to spaces
-          PI_TAGS_FORMATTED=$(echo "$PI_TAGS" | tr '\n' ' ')
-          echo "pi_tags=$PI_TAGS_FORMATTED" >> $GITHUB_ENV
-
-      - name: Get PI versions on PyPI
-        id: get-pi-pypi-versions
-        run: |
-          echo "Fetching privacyIDEA release versions from PyPI..."
-          PYPI_VERSIONS=$(curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused "https://pypi.org/pypi/privacyIDEA/json" \
-            | jq -e -r '.releases | keys[]')
-
-          if [[ -z "$PYPI_VERSIONS" ]]; then
-            echo "Error: Failed to fetch versions from PyPI" >&2
-            exit 1
-          fi
-
-          # Convert newlines to spaces
-          PYPI_VERSIONS_FORMATTED=$(echo "$PYPI_VERSIONS" | tr '\n' ' ')
-          echo "pypi_versions=$PYPI_VERSIONS_FORMATTED" >> $GITHUB_ENV
-
-      - name: Get existing tags
-        id: get-existing-tags
-        run: |
-          echo "Fetching existing tags from repository..."
-          git fetch --tags origin
-          EXISTING_TAGS=$(git tag -l)
-          # Convert newlines to spaces
-          EXISTING_TAGS_FORMATTED=$(echo "$EXISTING_TAGS" | tr '\n' ' ')
-          echo "existing_tags=$EXISTING_TAGS_FORMATTED" >> $GITHUB_ENV
-
-      - name: Process missing tags
-        id: process_tags
+      - name: Fetch upstream release versions
+        id: versions
+        shell: bash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PI_TAGS: ${{ env.pi_tags }}
+          PI_MIN_SUPPORTED_VERSION: ${{ env.PI_MIN_SUPPORTED_VERSION }}
         run: |
-          # Configure git identity before tagging
+          set -euo pipefail
+          runner_tmp="$RUNNER_TEMP"
+
+          echo "Fetching upstream privacyIDEA release tags..."
+          git ls-remote --tags --refs https://github.com/privacyidea/privacyidea.git \
+            | grep -oE 'refs/tags/v[0-9]+(\.[0-9]+)+$' \
+            | sed 's|refs/tags/||' \
+            | sort -u > "${runner_tmp}/upstream-tags.txt"
+
+          if [[ ! -s "${runner_tmp}/upstream-tags.txt" ]]; then
+            echo "::error::Failed to fetch upstream tags"
+            exit 1
+          fi
+
+          echo "Fetching privacyIDEA versions from PyPI..."
+          curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused \
+            https://pypi.org/pypi/privacyIDEA/json \
+            | jq -e -r '.releases | keys[]' | sort -u > "${runner_tmp}/pypi-versions.txt"
+
+          if [[ ! -s "${runner_tmp}/pypi-versions.txt" ]]; then
+            echo "::error::Failed to fetch versions from PyPI"
+            exit 1
+          fi
+
+          # Drop versions below the support floor. Historic tags stay as they
+          # are; they are never retried or published.
+          while IFS= read -r tag; do
+            version="${tag#v}"
+            highest=$(printf '%s\n%s\n' "$PI_MIN_SUPPORTED_VERSION" "$version" | sort -V | tail -1)
+            if [[ "$highest" == "$version" ]]; then
+              echo "$tag"
+            fi
+          done < "${runner_tmp}/upstream-tags.txt" > "${runner_tmp}/upstream-tags-supported.txt"
+
+          echo "supported upstream tags: $(wc -l < "${runner_tmp}/upstream-tags-supported.txt")"
+          echo "upstream_tags_file=${runner_tmp}/upstream-tags-supported.txt" >> "$GITHUB_OUTPUT"
+          echo "pypi_versions_file=${runner_tmp}/pypi-versions.txt" >> "$GITHUB_OUTPUT"
+
+      - name: Create missing tags
+        id: create
+        shell: bash
+        env:
+          UPSTREAM_TAGS_FILE: ${{ steps.versions.outputs.upstream_tags_file }}
+          PYPI_VERSIONS_FILE: ${{ steps.versions.outputs.pypi_versions_file }}
+        run: |
+          set -euo pipefail
+          runner_tmp="$RUNNER_TEMP"
+          created_file="${runner_tmp}/created-tags.txt"
+          : > "$created_file"
+
+          git fetch --tags origin
+          git tag -l | sort -u > "${runner_tmp}/existing-tags.txt"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Convert existing tags to a pattern for quick matching
-          EXISTING_TAGS_PATTERN=" ${{ env.existing_tags }} "
-          # Convert PyPI versions to a pattern for quick matching
-          PYPI_VERSIONS_PATTERN=" ${{ env.pypi_versions }} "
+          tags_to_create=()
+          while IFS= read -r tag; do
+            [[ -n "$tag" ]] || continue
+            version="${tag#v}"
 
-          # Collect tags to create
-          TAGS_TO_CREATE=()
-          SKIPPED_EXISTING=0
-          SKIPPED_NOT_ON_PYPI=0
-
-          # Process each PI tag
-          for tag in $PI_TAGS; do
-            # Validate with strict SemVer regex
-            if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+)+$ ]]; then
+            if grep -qxF "$tag" "${runner_tmp}/existing-tags.txt"; then
               continue
             fi
-
-            # Check if tag exists
-            if [[ "$EXISTING_TAGS_PATTERN" == *" $tag "* ]]; then
-              ((SKIPPED_EXISTING++)) || true
+            if ! grep -qxF "$version" "$PYPI_VERSIONS_FILE"; then
               continue
             fi
+            tags_to_create+=("$tag")
+          done < "$UPSTREAM_TAGS_FILE"
 
-            # Only trigger when this version is available on PyPI
-            pypi_version="${tag#v}"
-            if [[ "$PYPI_VERSIONS_PATTERN" != *" $pypi_version "* ]]; then
-              ((SKIPPED_NOT_ON_PYPI++)) || true
-              continue
-            fi
-
-            TAGS_TO_CREATE+=("$tag")
-          done
-
-          # Create all tags locally first
-          for tag in "${TAGS_TO_CREATE[@]}"; do
-            git tag "$tag"
-          done
-
-          # Push all tags at once and trigger the release workflow
-          if [[ ${#TAGS_TO_CREATE[@]} -gt 0 ]]; then
-            echo "Pushing ${#TAGS_TO_CREATE[@]} tags..."
-            git push origin "${TAGS_TO_CREATE[@]}"
-
-            # Sleep 2s for remote registration
-            sleep 2
-
-            # Explicitly trigger release.yml for each new tag
-            for tag in "${TAGS_TO_CREATE[@]}"; do
-              echo "Triggering release.yml for ${tag}..."
-              # Strip 'v' prefix since workflow_dispatch expects the version without 'v'
-              version_without_v="${tag#v}"
-              gh workflow run release.yml --ref "$tag" -f pi_version="${version_without_v}" --repo "$GITHUB_REPOSITORY" || true
-              sleep 2
+          # Create and push all tags at once. GITHUB_TOKEN pushes do not start
+          # workflows, so the dispatch below is the only release trigger.
+          if [[ ${#tags_to_create[@]} -gt 0 ]]; then
+            for tag in "${tags_to_create[@]}"; do
+              git tag "$tag"
+              printf '%s\n' "$tag" >> "$created_file"
             done
+            git push origin "${tags_to_create[@]}"
           fi
 
-          # Write results to GITHUB_OUTPUT for the summary step
-          # Build JSON array by constructing it directly
-          if [[ ${#TAGS_TO_CREATE[@]} -gt 0 ]]; then
-            JSON_PART=$(printf ', "%s"' "${TAGS_TO_CREATE[@]}")
-            TAGS_JSON="[${JSON_PART:1}]"
-          else
-            TAGS_JSON='[]'
-          fi
-          echo "tags_created_json=${TAGS_JSON}" >> $GITHUB_OUTPUT
-          echo "created_count=${#TAGS_TO_CREATE[@]}" >> $GITHUB_OUTPUT
-          echo "skipped_existing=$SKIPPED_EXISTING" >> $GITHUB_OUTPUT
-          echo "skipped_not_on_pypi=$SKIPPED_NOT_ON_PYPI" >> $GITHUB_OUTPUT
+          count=$(wc -l < "$created_file" | tr -d ' ')
+          echo "created_count=${count}" >> "$GITHUB_OUTPUT"
+          echo "created_file=${created_file}" >> "$GITHUB_OUTPUT"
+          echo "created ${count} tag(s)"
+
+      - name: Dispatch release runs
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CREATED_FILE: ${{ steps.create.outputs.created_file }}
+          CREATED_COUNT: ${{ steps.create.outputs.created_count }}
+        run: |
+          set -euo pipefail
+          runner_tmp="$RUNNER_TEMP"
+          dispatched_file="${runner_tmp}/dispatched.tsv"
+          : > "$dispatched_file"
+
+          [[ "${CREATED_COUNT:-0}" -gt 0 ]] || exit 0
+
+          while IFS= read -r tag; do
+            [[ -n "$tag" ]] || continue
+            version="${tag#v}"
+
+            # No "|| true": a failed dispatch must fail this run.
+            if ! gh workflow run release.yml --repo "$GITHUB_REPOSITORY" \
+              --ref "$tag" -f pi_version="$version"; then
+              echo "::error::Failed to dispatch release.yml for ${tag}"
+              exit 1
+            fi
+
+            run_id=""
+            for _ in $(seq 1 12); do
+              # shellcheck disable=SC2016 # $tag is a jq variable, not shell
+              run_id=$(gh api \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml/runs?event=workflow_dispatch&per_page=20" \
+                --jq --arg tag "$tag" '.workflow_runs[] | select(.head_branch == $tag) | .id' \
+                | head -n 1)
+              [[ -n "$run_id" ]] && break
+              sleep 5
+            done
+
+            if [[ -z "$run_id" ]]; then
+              echo "::error::Dispatched release.yml for ${tag} but no queued run was found"
+              exit 1
+            fi
+
+            printf '%s\t%s\n' "$tag" "$run_id" >> "$dispatched_file"
+            echo "dispatched ${tag} -> run ${run_id}"
+          done < "$CREATED_FILE"
+
+          echo "dispatched_file=${dispatched_file}" >> "$GITHUB_OUTPUT"
+
+      - name: Reconcile release tags without a release
+        id: reconcile
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CREATED_FILE: ${{ steps.create.outputs.created_file }}
+          DISPATCHED_FILE: ${{ steps.dispatch.outputs.dispatched_file }}
+          PI_MIN_SUPPORTED_VERSION: ${{ env.PI_MIN_SUPPORTED_VERSION }}
+        run: |
+          set -euo pipefail
+          runner_tmp="$RUNNER_TEMP"
+          missing_file="${runner_tmp}/missing-releases.txt"
+          : > "$missing_file"
+
+          # Tags without a GitHub release were tagged but never published.
+          # Re-dispatch them, excluding tags created in this run and tags with
+          # a run already queued or running. Cap re-dispatches per sync.
+          # No fixed cap: every missing release is retried on each sync. A
+          # capped queue would let one poisoned version starve the rest
+          # forever. Each dispatch is one run; publish serializes the writes.
+          mapfile -t repo_tags < <(git tag -l 'v*' | sort -V)
+
+          released=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 500 --json tagName --jq '.[].tagName')
+
+          for tag in "${repo_tags[@]}"; do
+            version="${tag#v}"
+            [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || continue
+
+            highest=$(printf '%s\n%s\n' "$PI_MIN_SUPPORTED_VERSION" "$version" | sort -V | tail -1)
+            [[ "$highest" == "$version" ]] || continue
+
+            if grep -qxF "$tag" "${CREATED_FILE:-/dev/null}"; then
+              continue
+            fi
+            if grep -qxF "$tag" <<< "$released"; then
+              continue
+            fi
+            if [[ -n "${DISPATCHED_FILE:-}" ]] && cut -f1 "$DISPATCHED_FILE" | grep -qxF "$tag"; then
+              continue
+            fi
+
+            # shellcheck disable=SC2016 # $tag is a jq variable, not shell
+            active=$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/release.yml/runs?per_page=50" \
+              --jq --arg tag "$tag" '[.workflow_runs[] | select(.head_branch == $tag and (.status == "queued" or .status == "in_progress"))] | length')
+            if [[ "${active:-0}" -gt 0 ]]; then
+              continue
+            fi
+
+            if ! gh workflow run release.yml --repo "$GITHUB_REPOSITORY" \
+              --ref "$tag" -f pi_version="$version"; then
+              echo "::error::Failed to re-dispatch release.yml for ${tag}"
+              exit 1
+            fi
+            printf '%s\n' "$tag" >> "$missing_file"
+            echo "re-dispatched ${tag} because it has no release"
+          done
+
+          echo "missing_count=$(wc -l < "$missing_file" | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          echo "missing_file=${missing_file}" >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()
+        shell: bash
         env:
-          CREATED_COUNT: ${{ steps.process_tags.outputs.created_count }}
-          SKIPPED_EXISTING: ${{ steps.process_tags.outputs.skipped_existing }}
-          SKIPPED_NOT_ON_PYPI: ${{ steps.process_tags.outputs.skipped_not_on_pypi }}
-          TAGS_CREATED_JSON: ${{ steps.process_tags.outputs.tags_created_json }}
+          CREATED_FILE: ${{ steps.create.outputs.created_file }}
+          DISPATCHED_FILE: ${{ steps.dispatch.outputs.dispatched_file }}
+          MISSING_FILE: ${{ steps.reconcile.outputs.missing_file }}
+          CREATED_COUNT: ${{ steps.create.outputs.created_count }}
+          MISSING_COUNT: ${{ steps.reconcile.outputs.missing_count }}
         run: |
-          echo "## PI Tag Sync Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+          created_count="${CREATED_COUNT:-0}"
+          missing_count="${MISSING_COUNT:-0}"
 
-          CREATED_COUNT="${CREATED_COUNT:-0}"
-          SKIPPED_EXISTING="${SKIPPED_EXISTING:-0}"
-          SKIPPED_NOT_ON_PYPI="${SKIPPED_NOT_ON_PYPI:-0}"
-          TAGS_CREATED_JSON="${TAGS_CREATED_JSON:-[]}"
-
-          if [[ "$CREATED_COUNT" -gt 0 ]]; then
-            echo "### 🎉 New Tags Created" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "$TAGS_CREATED_JSON" | jq -r '.[]' | while read -r tag; do
-              echo "- **$tag** → [Build workflow](https://github.com/${{ github.repository }}/actions?query=workflow%3Arelease+tag%3A$tag)" >> $GITHUB_STEP_SUMMARY
-            done
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Triggered \`release.yml\` builds for $CREATED_COUNT new tag(s)." >> $GITHUB_STEP_SUMMARY
-          else
-            echo "### ✅ No New Tags" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "All available privacyIDEA versions already have corresponding tags." >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| ✅ Tags created | $CREATED_COUNT |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⏭️  Skipped (already exist) | $SKIPPED_EXISTING |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⏸️  Skipped (not on PyPI) | $SKIPPED_NOT_ON_PYPI |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Last synced: \`$(date -u +"%Y-%m-%d %H:%M:%S UTC")\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## PI tag sync"
+            echo
+            echo "| Result | Count |"
+            echo "| :-- | :-- |"
+            echo "| Tags created | ${created_count} |"
+            echo "| Releases re-dispatched | ${missing_count} |"
+            echo
+            if [[ "$created_count" -gt 0 && -s "${CREATED_FILE:-/dev/null}" ]]; then
+              echo "### Created tags"
+              echo
+              echo "| Tag | Run |"
+              echo "| :-- | :-- |"
+              while IFS=$'\t' read -r tag run_id; do
+                echo "| \`${tag}\` | [${run_id}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id}) |"
+              done < "${DISPATCHED_FILE:-/dev/null}"
+              echo
+            fi
+            if [[ "$missing_count" -gt 0 && -s "${MISSING_FILE:-/dev/null}" ]]; then
+              echo "### Re-dispatched tags without a release"
+              echo
+              while IFS= read -r tag; do
+                echo "- \`${tag}\`"
+              done < "$MISSING_FILE"
+              echo
+            fi
+            echo "Last synced: \`$(date -u +"%Y-%m-%d %H:%M:%S UTC")\`"
+          } >> "$GITHUB_STEP_SUMMARY"

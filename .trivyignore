@@ -1,0 +1,14 @@
+# Trivy exceptions for the release CRITICAL gate.
+#
+# Policy (PERS-56 ADR-006): Trivy blocks publication on a CRITICAL finding that
+# has a fix available (ignore-unfixed is enabled, so unfixed base-image CVEs do
+# not block). A temporary exception is allowed only as an entry below with:
+#   - the CVE id,
+#   - an owner,
+#   - an expiry date that Security Auditor reviews,
+#   - the reason a fix is deferred.
+# Entries without an owner and expiry must be rejected in review. Remove the
+# entry when the fix ships or the expiry passes.
+#
+# Example (do not uncomment without an owner and expiry):
+# CVE-0000-00000  # owner: @maintainer, expires: 2026-12-31, reason: ...

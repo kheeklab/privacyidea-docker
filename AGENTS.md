@@ -20,16 +20,16 @@ make cleanup  # stop/remove privacyidea-dev container, sudo rm -rf /tmp/privacyi
 
 `make run` requires the generated files `secretkey` (PI_SECRET_KEY) and `pipepper` (PI_PEPPER) in the repo root; `make` creates them. Requires container-structure-test on PATH.
 
-CI pipeline in `.github/workflows/release.yml` (triggers: push to `main`, `v*` tags, PRs, manual dispatch with `pi_version`):
+CI pipeline in `.github/workflows/ci.yml` (pull requests only, no secrets):
 
 ```bash
-docker build --build-arg PI_VERSION=${PI_VERSION} -t privacyidea:test .        # release.yml:143
-container-structure-test test --image privacyidea:test --config structure-tests.yaml   # release.yml:157, CST v1.22.1 installed in CI
-docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120  # release.yml:175
-docker compose --file docker-compose-test.yml down -v                                     # release.yml:178
+docker build --build-arg PI_VERSION=${PI_VERSION} -t privacyidea:test .        # ci.yml test job
+container-structure-test test --image privacyidea:test --config structure-tests.yaml   # CST v1.22.1 installed in CI
+docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120
+docker compose --file docker-compose-test.yml down -v
 ```
 
-Dockerfile lint is hadolint with `no-fail: true` (release.yml:121–126); CI builds/pushes amd64+arm64 to Docker Hub and GHCR on non-PR runs, then Trivy (CRITICAL,HIGH, report-only). `.github/workflows/check-pi-version.yml` runs daily, creates missing `v*` tags for privacyIDEA releases available on PyPI, and pushes them, which retriggers release.yml.
+Release pipeline in `.github/workflows/release.yml` (push to `main`, `v*` tags, validated manual dispatch): builds one multi-platform staging index, tests the exact digest natively on amd64 and arm64, then promotes it in a serialized publish job. Lint is hadolint with `failure-threshold: error`, shellcheck at `warning`, and actionlint. Version tags come only from release refs; `main` publishes `edge` and `sha-<12>`. Trivy is a blocking CRITICAL gate with `ignore-unfixed` and `.trivyignore` exceptions. `.github/workflows/check-pi-version.yml` runs daily, creates missing `v*` tags at or above the 3.14 floor, dispatches release.yml, verifies the queued run, and re-dispatches tags that have no GitHub release.
 
 ## Repository map
 
@@ -49,7 +49,8 @@ rootfs/usr/local/bin/      privacyidea_entrypoint.sh, configure_privacyidea.sh, 
 rootfs/opt/privacyidea/    gunicorn_conf.py, pi-logging.yml
 rootfs/opt/templates/      pi-config.template
 example/                   docker-compose-posgresql.yml
-.github/workflows/         release.yml (buildx CI), check-pi-version.yml (daily tag sync)
+.github/workflows/         ci.yml (PR CI), release.yml (release pipeline), check-pi-version.yml (daily tag sync)
+docs/release-runbook.md    release preconditions, partial-publication recovery, latest repair, retention
 ```
 
 ## Runtime contract

@@ -11,7 +11,7 @@ services:
       - PI_PAGE_TITLE=pivacyIDEA
       - PI_BASE_URL=http://localhost:8080
   sut:
-      image: alpine:latest
+      image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
       depends_on:
         - pi-app
       environment:

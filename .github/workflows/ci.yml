@@ -1,0 +1,156 @@
+name: ci
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: Dockerfile
+          format: sarif
+          output-file: hadolint-results.sarif
+          failure-threshold: error
+
+      # SARIF upload needs security-events: write, which fork and Dependabot
+      # pull requests do not have. Skip instead of failing on permission.
+      - name: Upload hadolint SARIF
+        if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
+        uses: github/codeql-action/upload-sarif@f3bbb05694c2f74569081c28664c0866d64dec21 # v4.39.3
+        with:
+          sarif_file: hadolint-results.sarif
+          category: hadolint-dockerfile
+
+      # Gate on errors only. Existing runtime scripts carry warnings
+      # (SC2166, SC2155, SC1090, SC2221/2222); tightening this to warning
+      # needs those fixed in a separate change.
+      - name: ShellCheck
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
+        with:
+          scandir: .
+          additional_files: prebuildfs/usr/sbin/install_packages
+          severity: error
+          check_together: 'yes'
+
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          archive="/tmp/actionlint.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" -C /tmp actionlint
+          sudo install -m 0755 /tmp/actionlint /usr/local/bin/actionlint
+
+      - name: Run actionlint
+        run: actionlint -color
+
+  test:
+    name: Test ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Resolve privacyIDEA version
+        id: version
+        env:
+          PI_MIN_SUPPORTED_VERSION: '3.14'
+        run: |
+          set -euo pipefail
+          version=$(curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused \
+            https://pypi.org/pypi/privacyIDEA/json | jq -r '.info.version')
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+            echo "Resolved PyPI version is not a release version: ${version}" >&2
+            exit 1
+          fi
+          if [[ "$(printf '%s\n%s\n' "$PI_MIN_SUPPORTED_VERSION" "$version" | sort -V | tail -1)" != "$version" ]]; then
+            echo "Resolved PyPI version ${version} is below the supported floor ${PI_MIN_SUPPORTED_VERSION}" >&2
+            exit 1
+          fi
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build test image
+        env:
+          PI_VERSION: ${{ steps.version.outputs.version }}
+        run: docker build --build-arg "PI_VERSION=${PI_VERSION}" -t privacyidea:test .
+
+      - name: Install container-structure-test
+        env:
+          CST_VERSION: 1.22.1
+          CST_AMD64_SHA256: fa35e89512a8978585f76cf41397956d2e3a30c62c2ad3fb857b1597074d14ca
+          CST_ARM64_SHA256: 801826ed107222120eb6df8c143b7de752cfebbe3aebfeea576e7098486917c2
+        run: |
+          set -euo pipefail
+          case "$(uname -m)" in
+            x86_64) arch=amd64; sha="$CST_AMD64_SHA256" ;;
+            aarch64|arm64) arch=arm64; sha="$CST_ARM64_SHA256" ;;
+            *) echo "Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+          binary="/tmp/container-structure-test"
+          curl -fsSL -o "$binary" \
+            "https://github.com/GoogleContainerTools/container-structure-test/releases/download/v${CST_VERSION}/container-structure-test-linux-${arch}"
+          echo "${sha}  ${binary}" | sha256sum -c -
+          chmod +x "$binary"
+          sudo install -m 0755 "$binary" /usr/local/bin/container-structure-test
+          container-structure-test version
+
+      - name: Container structure test
+        run: container-structure-test test --image privacyidea:test --config structure-tests.yaml
+
+      - name: Integration test
+        run: |
+          set -euo pipefail
+          docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120
+          docker compose --file docker-compose-test.yml down -v
+
+      - name: Assert installed privacyIDEA version
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          installed=$(docker run --rm --entrypoint /opt/privacyidea/bin/python privacyidea:test \
+            -c 'import importlib.metadata as m; print(m.version("privacyIDEA"))')
+          echo "expected=${EXPECTED_VERSION} installed=${installed}"
+          if [[ "$installed" != "$EXPECTED_VERSION" ]]; then
+            echo "Installed privacyIDEA ${installed} does not match requested ${EXPECTED_VERSION}" >&2
+            exit 1
+          fi
+
+      - name: Cleanup compose stack
+        if: always()
+        run: docker compose --file docker-compose-test.yml down -v || true

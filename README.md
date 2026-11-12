@@ -18,19 +18,27 @@ The docker image is a self-contained Debian with privacyIDEA installed, which wi
 
 The image is stored in below registries:
 
-- [Docker Hub](https://hub.docker.com/r/kheeklab/privacyidea)
-- [GitHub Container Registry](https://github.com/kheeklab/privacyidea-docker/pkgs/container/privacyidea)
+- [Docker Hub](https://hub.docker.com/r/kheeklab/privacyidea) — stable release tags only.
+- [GitHub Container Registry](https://github.com/kheeklab/privacyidea-docker/pkgs/container/privacyidea) — all channels, including `edge`.
 
 ### Tags
 
-The image tags are following privacyIDEA version e.g. `3.14` and `latest`. The default tag is `latest` is not suitable for production environments as it might not test all use cases.
+Version tags identify a released privacyIDEA version and are never rewritten by later builds. `main` publishes only the moving `edge` channel, so use `edge` if you want the newest unreleased code; `edge` is GHCR-only.
+
+Pin production deployments by digest. `latest`, `edge` and `sha-<12>` are mutable tags and can be republished by a later build.
 
 This image targets privacyIDEA 3.14 and newer. Kerberos extras are not installed: upstream dropped the separate `requirements-kerberos.txt` in 3.14.
 
-| Tag | Description |
-| :-- | :---------- |
-| `latest` | The latest image build from main branch |
-| `3.10` `3.10-python-3.12.7-bulseye`   | The image specified tag |
+| Tag | Written from | Description |
+| :-- | :-- | :---------- |
+| `latest` | Newest stable release | Highest released version. Moves forward only while the GitHub Releases ledger is intact; an older release never moves it back. |
+| `X.Y` | Release `vX.Y` | Version alias, e.g. `3.14`. Rewritten only by a release of the same version. |
+| `X.Y.Z` | Release `vX.Y.Z` | Patch alias when upstream publishes a patch release. |
+| `vX.Y` `vX.Y.Z` | Release tag | Same image as `X.Y` / `X.Y.Z`. |
+| `X.Y-YYYYMMDD` | Release build date | Dated snapshot of that release, created once. |
+| `edge` | Every push to `main` | Moving GHCR-only development channel for the newest `main` build. Not a release; may be unstable. |
+| `sha-<12>` | Every build | Mutable build alias: the first 12 characters of the commit SHA. A re-run republishes the same name with a new digest. Pin by digest, not by this tag. |
+
 
 ## Building
 
