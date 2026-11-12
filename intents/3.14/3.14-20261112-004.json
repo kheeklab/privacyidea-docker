@@ -1,0 +1,16 @@
+{
+  "version": "3.14",
+  "route": "rebuild",
+  "identity": "3.14-20261112-004",
+  "ref": "v3.14-20261112-004",
+  "date_utc": "20261112",
+  "sequence": "004",
+  "requirements_ref": "v3.14",
+  "status": "reserved",
+  "tested_digest": null,
+  "expected_previous": null,
+  "commit": "4f951cb96afe5af7e1856ac623ea70fb87eec0be",
+  "run": "https://github.com/kheeklab/privacyidea-docker/actions/runs/43237002884/attempts/1",
+  "created_at": "2026-11-12T14:25:35Z",
+  "updated_at": "2026-11-12T14:25:35Z"
+}
