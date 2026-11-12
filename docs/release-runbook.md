@@ -1,114 +1,60 @@
 # Release runbook
 
-Operational procedure for `.github/workflows/release.yml`. Written for the approval and recovery path; it does not authorise any registry action by itself.
+Operational rules for `.github/workflows/release.yml` and `.github/workflows/check-pi-version.yml`. This runbook does not grant approval to publish.
 
-## Preconditions
+## Tag classes and write rules
 
-- `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN` are configured (release-channel runs fail closed without them). `DOCKERHUB_NAMESPACE` is optional and defaults to the repository owner.
-- `ubuntu-24.04-arm` hosted runners are available to the repository.
-- The `release` environment exists. Decide whether it needs required reviewers; without reviewers the publish job runs unattended.
-- A GitHub release exists for every version already published (`v3.14`, ...). The release list is the ordering ledger. If the registry has a `latest` tag but no release exists, the publish job stops and asks for the baseline below.
+| Ref or image tag | Meaning | Writer and mutability |
+| :-- | :-- | :-- |
+| `vV` | Upstream numeric privacyIDEA release | Feeder may create only after the approval gate; never overwrite |
+| `V` | Mutable image alias for installed version `V` | Numeric release or rebuild may move it to its tested digest |
+| `V-YYYYMMDD[-NNN]` | Immutable image release identity | Release workflow only; a different digest is always refused |
+| `vV-YYYYMMDD[-NNN]` | Explicit image rebuild trigger, not an upstream version | Member/maintainer creates; feeder never creates or dispatches it |
+| `vV` image tag, `latest` | Numeric release pointers | Numeric route only; `latest` follows the highest numeric GitHub release |
+| `edge`, `sha-<12>` | Edge or numeric commit pointers | Edge route writes GHCR only; numeric route may write both registries |
 
-## Normal release
+Rebuild route uses option A: it writes only `V-YYYYMMDD[-NNN]` and `V` in both registries. It does not move `vV`, `latest`, `edge`, or `sha-<12>`, create a GitHub Release, or edit the numeric release ledger. A real upstream patch such as `v3.14.1` uses the numeric route, installs exactly `3.14.1`, and gets its own dated identity and alias.
 
-Automated: the daily `Sync PI Tags` workflow creates a `vX.Y` tag above the 3.14 floor and dispatches `release.yml` for it.
+## Approval boundaries
 
-Manual:
+Repository variable `FEEDER_APPROVED_VERSIONS` is the feeder allowlist. Add an exact numeric version only after member approval to create its upstream ref and dispatch its numeric release. Scheduled execution alone grants no approval. The workflow then runs with the repository's configured release environment and credentials.
 
-```console
-gh workflow run release.yml --ref v3.14.1 -f pi_version=3.14.1
-```
+Every outward action still needs explicit member approval: merge; git tag push; workflow dispatch; staging writes; dated tag creation in GHCR and Docker Hub; alias move in each registry; any `vV` or `latest` move; GitHub Release creation or edit; registry repair. A successful CI run or `in_review` status authorizes none of these actions.
 
-The workflow validates the ref and version before any credential is used, builds one multi-platform index under a run-scoped staging tag (`stg-<run-id>-<attempt>-<version>`), tests that digest natively on amd64 and arm64, then promotes it in a serialized publish job. Version tags are refused if a different digest already exists.
+## Dispatch and identity reservation
 
-## Manual dispatch targets
-
-`workflow_dispatch` takes two inputs: `channel` (`release` or `edge`, default `release`) and `pi_version` (release only). GitHub does not let a workflow restrict the branch/tag dropdown, so the supported combinations are enforced by `Validate release input` (`.github/scripts/resolve-release-input.sh`) before any credential is used.
-
-| Ref selected in "Use workflow from" | `channel` | `pi_version` | Outcome |
-| :-- | :-- | :-- | :-- |
-| Release tag `v<version>` | `release` (default) | Required, must equal the tag version | Release: GHCR and Docker Hub version tags, GitHub release, `latest` when it is the highest version |
-| `main` | `edge` | Must be omitted | Edge: GHCR `edge` and `sha-<12>` only |
-| Any other branch | either | — | Rejected with the commands below |
-| Release tag `v<version>` | `edge` | — | Rejected: edge builds come from `main` |
-| `main` | `release` (default) | — | Rejected: a release needs a tag ref |
+Numeric releases are dispatched against the upstream tag:
 
 ```console
-# Release v3.14.1 (tag must already exist; the feeder creates tags)
-gh workflow run release.yml --ref v3.14.1 -f pi_version=3.14.1
-
-# Rebuild the edge channel from the current main HEAD
-gh workflow run release.yml --ref main -f channel=edge
+gh workflow run release.yml --ref v3.14.1 -f channel=release -f pi_version=3.14.1
 ```
 
-An edge dispatch resolves the version from PyPI, runs the same build, native tests and CRITICAL Trivy gate, and writes only the mutable `edge` and `sha-<12>` GHCR tags. It never creates a GitHub release, never logs in to Docker Hub, and never moves `latest`.
+Rebuilds use an annotated ref at the implementation commit. Choose the current UTC date when reserving a new intent. Use bare date if unused; otherwise use the next unused sequence greater than every accepted sequence for that version and day (`001`–`999`). `000` is invalid. Dispatch with the matching installed version:
 
-### A rejected dispatch
+```console
+gh workflow run release.yml --ref v3.14-YYYYMMDD -f channel=release -f pi_version=3.14
+```
 
-A rejected dispatch fails in `Validate release input` and does nothing else: no build, no test, no registry write, no release. The annotation names the fix.
+The durable intent is stored as `intents/<version>/<identity>.json` on the repository's `release-intents` orphan branch. The workflow reads and writes it under the shared `release-publish` concurrency group. A failed concurrent push stops the run. The record fixes the identity, ref, commit, date, tested digest and expected prior registry values. A retry resumes that intent and digest. It must not rebuild into a recorded identity. New intents cannot be backdated beyond seven days or use future/impossible dates.
 
-| Message | Fix |
-| :-- | :-- |
-| `release dispatch must target a release tag` | Select the `v<version>` tag as the ref, or dispatch `--ref main -f channel=edge` for an edge build |
-| `pi_version input is required for release dispatch` | Add `-f pi_version=<version>` matching the tag |
-| `pi_version <x> does not match ref v<y>` | Correct `pi_version` or select the matching tag |
-| `edge dispatch must target the main branch` | Use `--ref main` for `channel=edge` |
-| `pi_version must be omitted for channel=edge` | Drop the `pi_version` input; edge installs the current PyPI release |
-| `unsupported channel input` | Use `release` or `edge` |
+The resolver requires upstream `vV` and exact PyPI package `V` for rebuilds. Dockerfile gets its requirements ref explicitly; it installs exactly `privacyidea==V`. For supported upstream forms, versions follow `major.minor[.patch]`.
 
-## Failure handling
+## Promotion and recovery
 
-### Promotion failed after some tags were written
+The workflow builds staging tags, tests the same multi-arch index on native amd64 and arm64, verifies installed package version, and runs the blocking CRITICAL Trivy gate. Under the publication lock it reads the full numeric GitHub Releases ledger immediately before deciding `latest`.
 
-The publish job fails closed and never overwrites a version tag whose digest differs. Recovery is manual:
+Before any consumer write, promotion inspects every target in both registries. Only a confirmed manifest absence counts as absent; authorization, network, and other inspection errors stop promotion. It writes dated immutable tags first, reads each back, then writes the mutable version alias and reads it back. Registry index digests must equal the tested digest. A mismatch freezes further promotion for that version; retain evidence and investigate. Registry repair requires separate approval.
 
-1. Open the failed run and download the `release-promotion-<version>-<run>-<attempt>` artefact. It lists the tested index digest and every registry/tag already written.
-2. Freeze further publication: do not re-dispatch the same version and do not run another release until this is closed.
-3. Inspect both registries for the version tags and compare them with the tested digest in the journal.
-4. Decide with the maintainer whether to complete the promotion by re-running the release (safe only if every written tag already matches the tested digest) or to repair tags. Repairing or deleting registry tags needs separate explicit approval.
-5. If repair is approved, write the new digests and the decision into the issue record.
+The promotion journal records version, identity, ref, commit, tested digest, expected previous alias values, per-registry before/after values, ledger ordering evidence, and skipped pointer decisions. Workflow artifacts and staging evidence are retained at least 90 days. A partial two-registry write can resume only from the same recorded intent and digest when every existing target matches; no alternate identity or digest retry is allowed.
 
-Staging tags (`stg-*`) are the evidence for this window. They are never deleted by a workflow or by a release. Keep them for at least 90 days; the promotion-journal artefact is retained for 90 days by `actions/upload-artifact`.
+For numeric releases, `latest` moves only if that version is the highest actual numeric release in the freshly read ledger. If a newer numeric release arrives before promotion, the dated identity and version alias may publish, while `latest` stays unchanged. Rebuilds never move `latest`.
 
-### `latest` did not move but the release exists
+## Feeder contract
 
-The GitHub release is created before the `latest` pointer moves. A failure in between leaves `latest` behind the ledger, never ahead.
-
-1. Confirm the release `v<version>` exists and is the highest stable release.
-2. If approved, move `latest` in each registry to the release's tested digest:
-
-   ```console
-   docker buildx imagetools create --tag ghcr.io/kheeklab/privacyidea:latest \
-     ghcr.io/kheeklab/privacyidea:v<version>
-   docker buildx imagetools create --tag kheeklab/privacyidea:latest \
-     kheeklab/privacyidea:v<version>
-   ```
-
-   The release is already recorded, so a later run will skip this version; there is no automatic retry.
-3. Record the digests before and after the change.
-
-### Ledger baseline is missing
-
-If `latest` exists in GHCR but no GitHub release does, publication stops rather than guessing the current version. Restore the ledger (restore the deleted releases, or recreate them from the known published tags), or obtain explicit approval for a one-off baseline decision. Do not move `latest` by hand without recording the version it points to.
-
-### Re-dispatch fairness
-
-The feeder re-dispatches every tag above the floor that has no GitHub release, on each daily run, with no fixed cap. A version that keeps failing fails visibly each day without starving later versions. A canceled pending publish run is re-dispatched on the next sync.
-
-## Evidence and retention
-
-- Promotion journal: one artifact per publish attempt, retained 90 days. Contains version, run URL, tested digest and each registry/tag write.
-- Staging tags: keep 90 days minimum, then delete manually after confirming no open recovery.
-- Workflow logs: GitHub default retention; do not rely on logs alone for a failed promotion.
-
-## Attestations and signing
-
-`provenance: mode=max` and `sbom: true` are attached to the GHCR index. Whether Docker Hub exposes the same referrers after the same-registry copy is not verified; treat GHCR as the authoritative attestation store. Image signing is not implemented (separate decision).
+`check-pi-version.yml` discovers only numeric upstream refs at or above the support floor with an exact PyPI package. It creates missing numeric refs at HEAD only when `FEEDER_APPROVED_VERSIONS` contains the version, then dispatches `release.yml` with matching `pi_version`. Reconciliation dispatches only approved numeric refs without a GitHub Release. Dated identities, rebuild refs, and other suffixed refs are excluded from discovery and retry.
 
 ## Rollback
 
-Reverting the workflow changes stops new releases from using this pipeline. It does not undo registry tags, `latest`, or GitHub releases already written; those are separate approved actions. Restore the previous workflow files and record which versions were published under which pipeline.
+Revert the workflow/script/docs commit to stop using this release path. A revert does not retract published identities, aliases, pointers, GitHub Releases, or ledger entries. Restoring or deleting published state requires a separately approved repair with before/after digests recorded in the issue.
 
-## Out of scope here
-
-Registry tag restoration or deletion, retention/immutability policy, signing, and changing repository settings or the `release` environment protection are maintainer decisions, not runbook steps.
+Known historical drift remains out of scope: Docker Hub `3.13` differs from GHCR `3.13`; the existing `3.14` and `v3.14` image tags also differ. Do not repair either as part of this runbook.

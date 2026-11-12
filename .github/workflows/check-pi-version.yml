@@ -36,13 +36,21 @@ jobs:
           PI_MIN_SUPPORTED_VERSION: ${{ env.PI_MIN_SUPPORTED_VERSION }}
         run: |
           set -euo pipefail
+          # One shared rule for what counts as an upstream numeric release.
+          # Dated rebuild refs (v3.14-20261112) and any other suffix are not
+          # upstream versions and never enter this list.
+          # shellcheck source=.github/scripts/release-refs.sh
+          . .github/scripts/release-refs.sh
           runner_tmp="$RUNNER_TEMP"
 
           echo "Fetching upstream privacyIDEA release tags..."
           git ls-remote --tags --refs https://github.com/privacyidea/privacyidea.git \
-            | grep -oE 'refs/tags/v[0-9]+(\.[0-9]+)+$' \
-            | sed 's|refs/tags/||' \
-            | sort -u > "${runner_tmp}/upstream-tags.txt"
+            | sed 's|.*refs/tags/||' \
+            | sort -u > "${runner_tmp}/upstream-tags-all.txt"
+
+          while IFS= read -r tag; do
+            is_numeric_tag "$tag" && printf '%s\n' "$tag"
+          done < "${runner_tmp}/upstream-tags-all.txt" > "${runner_tmp}/upstream-tags.txt" || true
 
           if [[ ! -s "${runner_tmp}/upstream-tags.txt" ]]; then
             echo "::error::Failed to fetch upstream tags"
@@ -79,11 +87,22 @@ jobs:
         env:
           UPSTREAM_TAGS_FILE: ${{ steps.versions.outputs.upstream_tags_file }}
           PYPI_VERSIONS_FILE: ${{ steps.versions.outputs.pypi_versions_file }}
+          # Scheduled automation does not by itself authorise publishing an
+          # upstream patch. The repository variable lists the numeric versions
+          # a member has approved; everything else is reported, never created.
+          APPROVED_VERSIONS: ${{ vars.FEEDER_APPROVED_VERSIONS }}
         run: |
           set -euo pipefail
           runner_tmp="$RUNNER_TEMP"
           created_file="${runner_tmp}/created-tags.txt"
+          pending_file="${runner_tmp}/pending-approval.txt"
           : > "$created_file"
+          : > "$pending_file"
+
+          approved="$(printf '%s' "${APPROVED_VERSIONS:-}" | tr ',' '\n' | tr -d ' ' | sed '/^$/d')"
+          is_approved() {
+            [[ -n "$approved" ]] && grep -qxF "$1" <<< "$approved"
+          }
 
           git fetch --tags origin
           git tag -l | sort -u > "${runner_tmp}/existing-tags.txt"
@@ -102,11 +121,17 @@ jobs:
             if ! grep -qxF "$version" "$PYPI_VERSIONS_FILE"; then
               continue
             fi
+            if ! is_approved "$version"; then
+              printf '%s\n' "$tag" >> "$pending_file"
+              echo "not creating ${tag}: awaiting member approval (set repository variable FEEDER_APPROVED_VERSIONS to include ${version})"
+              continue
+            fi
             tags_to_create+=("$tag")
           done < "$UPSTREAM_TAGS_FILE"
 
-          # Create and push all tags at once. GITHUB_TOKEN pushes do not start
-          # workflows, so the dispatch below is the only release trigger.
+          # Create and push all approved tags at once. GITHUB_TOKEN pushes do
+          # not start workflows, so the dispatch below is the only release
+          # trigger.
           if [[ ${#tags_to_create[@]} -gt 0 ]]; then
             for tag in "${tags_to_create[@]}"; do
               git tag "$tag"
@@ -116,9 +141,14 @@ jobs:
           fi
 
           count=$(wc -l < "$created_file" | tr -d ' ')
-          echo "created_count=${count}" >> "$GITHUB_OUTPUT"
-          echo "created_file=${created_file}" >> "$GITHUB_OUTPUT"
-          echo "created ${count} tag(s)"
+          pending=$(wc -l < "$pending_file" | tr -d ' ')
+          {
+            echo "created_count=${count}"
+            echo "created_file=${created_file}"
+            echo "pending_file=${pending_file}"
+            echo "pending_count=${pending}"
+          } >> "$GITHUB_OUTPUT"
+          echo "created ${count} tag(s); ${pending} awaiting approval"
 
       - name: Dispatch release runs
         id: dispatch
@@ -177,29 +207,47 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CREATED_FILE: ${{ steps.create.outputs.created_file }}
           DISPATCHED_FILE: ${{ steps.dispatch.outputs.dispatched_file }}
+          PENDING_FILE: ${{ steps.create.outputs.pending_file }}
+          APPROVED_VERSIONS: ${{ vars.FEEDER_APPROVED_VERSIONS }}
           PI_MIN_SUPPORTED_VERSION: ${{ env.PI_MIN_SUPPORTED_VERSION }}
         run: |
           set -euo pipefail
+          # shellcheck source=.github/scripts/release-refs.sh
+          . .github/scripts/release-refs.sh
           runner_tmp="$RUNNER_TEMP"
           missing_file="${runner_tmp}/missing-releases.txt"
           : > "$missing_file"
+          pending_file="${PENDING_FILE:-${runner_tmp}/pending-approval.txt}"
+          [[ -f "$pending_file" ]] || : > "$pending_file"
+
+          approved="$(printf '%s' "${APPROVED_VERSIONS:-}" | tr ',' '\n' | tr -d ' ' | sed '/^$/d')"
+          is_approved() {
+            [[ -n "$approved" ]] && grep -qxF "$1" <<< "$approved"
+          }
 
           # Tags without a GitHub release were tagged but never published.
-          # Re-dispatch them, excluding tags created in this run and tags with
-          # a run already queued or running. Cap re-dispatches per sync.
-          # No fixed cap: every missing release is retried on each sync. A
-          # capped queue would let one poisoned version starve the rest
-          # forever. Each dispatch is one run; publish serializes the writes.
+          # Re-dispatch only approved numeric versions; dated rebuild refs and
+          # any other suffix are not upstream versions and are never dispatched
+          # here. No fixed cap: every missing release is retried on each sync,
+          # so one poisoned version cannot starve the rest. Each dispatch is
+          # one run; publish serializes the writes.
           mapfile -t repo_tags < <(git tag -l 'v*' | sort -V)
 
           released=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 500 --json tagName --jq '.[].tagName')
 
           for tag in "${repo_tags[@]}"; do
+            is_numeric_tag "$tag" || continue
             version="${tag#v}"
-            [[ "$version" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || continue
 
             highest=$(printf '%s\n%s\n' "$PI_MIN_SUPPORTED_VERSION" "$version" | sort -V | tail -1)
             [[ "$highest" == "$version" ]] || continue
+
+            if ! is_approved "$version"; then
+              if ! grep -qxF "$tag" "$pending_file"; then
+                printf '%s\n' "$tag" >> "$pending_file"
+              fi
+              continue
+            fi
 
             if grep -qxF "$tag" "${CREATED_FILE:-/dev/null}"; then
               continue
@@ -228,8 +276,11 @@ jobs:
             echo "re-dispatched ${tag} because it has no release"
           done
 
-          echo "missing_count=$(wc -l < "$missing_file" | tr -d ' ')" >> "$GITHUB_OUTPUT"
-          echo "missing_file=${missing_file}" >> "$GITHUB_OUTPUT"
+          {
+            echo "missing_count=$(wc -l < "$missing_file" | tr -d ' ')"
+            echo "missing_file=${missing_file}"
+            echo "pending_file=${pending_file}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()
@@ -238,12 +289,15 @@ jobs:
           CREATED_FILE: ${{ steps.create.outputs.created_file }}
           DISPATCHED_FILE: ${{ steps.dispatch.outputs.dispatched_file }}
           MISSING_FILE: ${{ steps.reconcile.outputs.missing_file }}
+          PENDING_FILE: ${{ steps.create.outputs.pending_file }}
           CREATED_COUNT: ${{ steps.create.outputs.created_count }}
           MISSING_COUNT: ${{ steps.reconcile.outputs.missing_count }}
+          PENDING_COUNT: ${{ steps.create.outputs.pending_count }}
         run: |
           set -euo pipefail
           created_count="${CREATED_COUNT:-0}"
           missing_count="${MISSING_COUNT:-0}"
+          pending_count="${PENDING_COUNT:-0}"
 
           {
             echo "## PI tag sync"
@@ -252,6 +306,7 @@ jobs:
             echo "| :-- | :-- |"
             echo "| Tags created | ${created_count} |"
             echo "| Releases re-dispatched | ${missing_count} |"
+            echo "| Awaiting member approval | ${pending_count:-0} |"
             echo
             if [[ "$created_count" -gt 0 && -s "${CREATED_FILE:-/dev/null}" ]]; then
               echo "### Created tags"
@@ -261,6 +316,19 @@ jobs:
               while IFS=$'\t' read -r tag run_id; do
                 echo "| \`${tag}\` | [${run_id}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${run_id}) |"
               done < "${DISPATCHED_FILE:-/dev/null}"
+              echo
+            fi
+            if [[ -s "${PENDING_FILE:-/dev/null}" ]]; then
+              echo "### Awaiting member approval"
+              echo
+              echo "Scheduled automation does not authorise publishing these upstream versions."
+              echo "Add each approved version to the repository variable \`FEEDER_APPROVED_VERSIONS\`"
+              echo "(comma-separated, without the \`v\`) to let the feeder create and dispatch it."
+              echo
+              while IFS= read -r tag; do
+                [[ -n "$tag" ]] || continue
+                echo "- \`${tag}\`"
+              done < "$PENDING_FILE"
               echo
             fi
             if [[ "$missing_count" -gt 0 && -s "${MISSING_FILE:-/dev/null}" ]]; then
