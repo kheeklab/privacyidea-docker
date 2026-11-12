@@ -142,10 +142,12 @@ jobs:
 
           count=$(wc -l < "$created_file" | tr -d ' ')
           pending=$(wc -l < "$pending_file" | tr -d ' ')
-          echo "created_count=${count}" >> "$GITHUB_OUTPUT"
-          echo "created_file=${created_file}" >> "$GITHUB_OUTPUT"
-          echo "pending_file=${pending_file}" >> "$GITHUB_OUTPUT"
-          echo "pending_count=${pending}" >> "$GITHUB_OUTPUT"
+          {
+            echo "created_count=${count}"
+            echo "created_file=${created_file}"
+            echo "pending_file=${pending_file}"
+            echo "pending_count=${pending}"
+          } >> "$GITHUB_OUTPUT"
           echo "created ${count} tag(s); ${pending} awaiting approval"
 
       - name: Dispatch release runs
@@ -274,9 +276,11 @@ jobs:
             echo "re-dispatched ${tag} because it has no release"
           done
 
-          echo "missing_count=$(wc -l < "$missing_file" | tr -d ' ')" >> "$GITHUB_OUTPUT"
-          echo "missing_file=${missing_file}" >> "$GITHUB_OUTPUT"
-          echo "pending_file=${pending_file}" >> "$GITHUB_OUTPUT"
+          {
+            echo "missing_count=$(wc -l < "$missing_file" | tr -d ' ')"
+            echo "missing_file=${missing_file}"
+            echo "pending_file=${pending_file}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Summary
         if: always()
