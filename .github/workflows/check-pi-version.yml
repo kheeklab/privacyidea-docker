@@ -185,9 +185,10 @@ jobs:
           # Tags without a GitHub release were tagged but never published.
           # Re-dispatch them, excluding tags created in this run and tags with
           # a run already queued or running. Cap re-dispatches per sync.
+          # No fixed cap: every missing release is retried on each sync. A
+          # capped queue would let one poisoned version starve the rest
+          # forever. Each dispatch is one run; publish serializes the writes.
           mapfile -t repo_tags < <(git tag -l 'v*' | sort -V)
-          max_redispatches=5
-          redispatched=0
 
           released=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 500 --json tagName --jq '.[].tagName')
 
@@ -216,18 +217,12 @@ jobs:
               continue
             fi
 
-            if [[ "$redispatched" -ge "$max_redispatches" ]]; then
-              echo "::warning::Re-dispatch cap reached; remaining missing releases are handled by the next sync"
-              break
-            fi
-
             if ! gh workflow run release.yml --repo "$GITHUB_REPOSITORY" \
               --ref "$tag" -f pi_version="$version"; then
               echo "::error::Failed to re-dispatch release.yml for ${tag}"
               exit 1
             fi
             printf '%s\n' "$tag" >> "$missing_file"
-            redispatched=$((redispatched + 1))
             echo "re-dispatched ${tag} because it has no release"
           done
 

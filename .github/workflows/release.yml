@@ -89,14 +89,22 @@ jobs:
           sha_short="${GITHUB_SHA:0:12}"
           [[ "$sha_short" =~ ^[0-9a-f]{12}$ ]] || fail "unexpected SHA ${GITHUB_SHA}"
 
+          # One commit can build several versions (the feeder creates more than
+          # one v* ref at the same HEAD) and main resolves a moving PyPI
+          # version. A sha-only staging tag could be overwritten between build
+          # and promotion, so the staging identity carries the run and the
+          # version. sha-<12> remains a mutable consumer alias only.
+          staging_tag="stg-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${version}"
+          [[ "$staging_tag" =~ ^stg-[0-9]+-[0-9]+-[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || fail "unexpected staging tag ${staging_tag}"
+
           {
             echo "version=$version"
             echo "channel=$channel"
-            echo "staging_tag=sha-${sha_short}"
+            echo "staging_tag=${staging_tag}"
             echo "sha_short=$sha_short"
           } >> "$GITHUB_OUTPUT"
 
-          echo "channel=${channel} version=${version} staging_tag=sha-${sha_short}"
+          echo "channel=${channel} version=${version} staging_tag=${staging_tag}"
 
       # A GitHub release is the publication ledger. If it exists, the version
       # was fully published; retries and re-dispatches are no-ops.
@@ -132,6 +140,7 @@ jobs:
       sha_short: ${{ needs.validate.outputs.sha_short }}
       dockerhub: ${{ steps.targets.outputs.dockerhub }}
       namespace: ${{ steps.targets.outputs.namespace }}
+      hub_digest: ${{ steps.staging.outputs.hub_digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
@@ -157,12 +166,21 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           DOCKERHUB_NAMESPACE: ${{ vars.DOCKERHUB_NAMESPACE }}
           STAGING_TAG: ${{ needs.validate.outputs.staging_tag }}
+          CHANNEL: ${{ needs.validate.outputs.channel }}
         run: |
           set -euo pipefail
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           namespace="${DOCKERHUB_NAMESPACE:-$owner}"
           dockerhub=false
-          if [[ -n "$DOCKERHUB_USERNAME" && -n "$DOCKERHUB_TOKEN" ]]; then
+
+          # Docker Hub credentials exist only for release-channel runs. Edge
+          # builds from main are GHCR-only, so the credential is never
+          # reachable from an unattended main push.
+          if [[ "$CHANNEL" == "release" ]]; then
+            if [[ -z "$DOCKERHUB_USERNAME" || -z "$DOCKERHUB_TOKEN" ]]; then
+              echo "::error::Docker Hub credentials are required for a release but DOCKERHUB_USERNAME/DOCKERHUB_TOKEN are not configured"
+              exit 1
+            fi
             dockerhub=true
           fi
           {
@@ -178,7 +196,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -186,7 +204,7 @@ jobs:
 
       - name: Log in to Docker Hub
         if: steps.targets.outputs.dockerhub == 'true'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -226,6 +244,14 @@ jobs:
           if [[ "$DOCKERHUB_ENABLED" == "true" ]]; then
             dockerhub_ref="${DOCKERHUB_NAMESPACE}/privacyidea:${STAGING_TAG}"
             dockerhub_digest=$(docker buildx imagetools inspect "$dockerhub_ref" --format '{{.Manifest.Digest}}')
+
+            # The tested artifact is the GHCR index. A Docker Hub staging copy
+            # that is not byte-identical must never reach a consumer tag.
+            if [[ "$dockerhub_digest" != "$digest" ]]; then
+              echo "::error::Docker Hub staging digest ${dockerhub_digest} differs from tested GHCR staging digest ${digest}; refusing to promote"
+              exit 1
+            fi
+            echo "hub_digest=${dockerhub_digest}" >> "$GITHUB_OUTPUT"
             echo "staging ${dockerhub_ref} ${dockerhub_digest}"
           fi
 
@@ -253,7 +279,7 @@ jobs:
           persist-credentials: false
 
       - name: Log in to GHCR (read only)
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -355,7 +381,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Log in to GHCR
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -363,11 +389,15 @@ jobs:
 
       - name: Log in to Docker Hub
         if: needs.build.outputs.dockerhub == 'true'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.8.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # The release ledger is read completely and fail-closed: an API error or
+      # an unreadable response aborts instead of producing an empty ledger.
+      # A release is created before `latest` moves, so a crash can leave latest
+      # behind, never ahead.
       - name: Compute target tags and latest ordering
         id: targets
         shell: bash
@@ -376,6 +406,9 @@ jobs:
           CHANNEL: ${{ needs.validate.outputs.channel }}
           VERSION: ${{ needs.validate.outputs.version }}
           SHA_SHORT: ${{ needs.validate.outputs.sha_short }}
+          TESTED_DIGEST: ${{ needs.build.outputs.digest }}
+          NAMESPACE: ${{ needs.build.outputs.namespace }}
+          DOCKERHUB_ENABLED: ${{ needs.build.outputs.dockerhub }}
         run: |
           set -euo pipefail
           owner="${GITHUB_REPOSITORY_OWNER,,}"
@@ -385,9 +418,18 @@ jobs:
 
           if [[ "$CHANNEL" == "release" ]]; then
             tags=("v${VERSION}" "${VERSION}" "${VERSION}-${date_tag}" "sha-${sha_short}")
+
+            if ! releases_json=$(gh api --paginate --slurp "repos/${GITHUB_REPOSITORY}/releases?per_page=100"); then
+              echo "::error::Could not read the GitHub release ledger; refusing to compute latest ordering"
+              exit 1
+            fi
+            if ! jq -e 'type == "array"' >/dev/null <<< "$releases_json"; then
+              echo "::error::Release ledger response was not a JSON array"
+              exit 1
+            fi
+
             mapfile -t released < <(
-              gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName \
-                --jq '.[].tagName' \
+              jq -r '.[][]? // empty | .tag_name' <<< "$releases_json" \
                 | sed 's/^v//' \
                 | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?$' \
                 | sort -V \
@@ -397,6 +439,20 @@ jobs:
             if [[ ${#released[@]} -gt 0 ]]; then
               current_max="${released[-1]}"
             fi
+
+            # Bootstrap guard: an empty ledger with an existing latest pointer
+            # means the ledger no longer describes the registry. Refuse to
+            # guess, because guessing can move latest backward.
+            existing_latest=$(docker buildx imagetools inspect "ghcr.io/${owner}/privacyidea:latest" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+            hub_latest=""
+            if [[ "$DOCKERHUB_ENABLED" == "true" ]]; then
+              hub_latest=$(docker buildx imagetools inspect "${NAMESPACE}/privacyidea:latest" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+            fi
+            if [[ -z "$current_max" && ( -n "$existing_latest" || -n "$hub_latest" ) ]]; then
+              echo "::error::No GitHub release exists but a latest tag is published (ghcr=${existing_latest:-none}, dockerhub=${hub_latest:-none}); establish the release-ledger baseline before the first release (see docs/release-runbook.md)"
+              exit 1
+            fi
+
             if [[ -z "$current_max" ]]; then
               move_latest=true
             elif [[ "$VERSION" != "$current_max" ]]; then
@@ -408,10 +464,8 @@ jobs:
             tags=("edge" "sha-${sha_short}")
           fi
 
-          if [[ "$move_latest" == "true" ]]; then
-            tags+=(latest)
-          fi
-
+          # latest is not in this list. It moves only after the GitHub release
+          # exists, so the ledger records the version before the pointer moves.
           {
             echo 'tags<<EOF'
             printf '%s\n' "${tags[@]}"
@@ -420,6 +474,19 @@ jobs:
             echo "owner=${owner}"
             echo "date_tag=${date_tag}"
           } >> "$GITHUB_OUTPUT"
+
+          journal="${RUNNER_TEMP}/promotion-journal.md"
+          {
+            echo "# Promotion journal"
+            echo
+            echo "- version: ${VERSION}"
+            echo "- run: ${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID:-0}/attempts/${GITHUB_RUN_ATTEMPT:-0}"
+            echo "- tested index digest: ${TESTED_DIGEST:?}"
+            echo "- latest move: ${move_latest}"
+            echo
+            echo "| Registry | Tag | Digest |"
+            echo "| :-- | :-- | :-- |"
+          } > "$journal"
 
       - name: Promote GHCR tags
         id: promote_ghcr
@@ -433,16 +500,18 @@ jobs:
           set -euo pipefail
           repo="ghcr.io/${OWNER}/privacyidea"
           source="${repo}@${STAGING_DIGEST}"
+          journal="${RUNNER_TEMP}/promotion-journal.md"
           while IFS= read -r tag; do
             [[ -n "$tag" ]] || continue
             existing=$(docker buildx imagetools inspect "${repo}:${tag}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
             if [[ -n "$existing" && "$existing" == "$STAGING_DIGEST" ]]; then
               echo "${tag}=${existing}" >> "$GITHUB_OUTPUT"
+              echo "| GHCR | \`${tag}\` | \`${existing}\` |" >> "$journal"
               echo "${repo}:${tag} already points at the tested digest"
               continue
             fi
             if [[ -n "$existing" && "$existing" != "$STAGING_DIGEST" ]]; then
-              if [[ "$CHANNEL" == "release" && "$tag" != "latest" && "$tag" != sha-* ]]; then
+              if [[ "$CHANNEL" == "release" && "$tag" != sha-* ]]; then
                 echo "::error::Refusing to overwrite published tag ${repo}:${tag} (${existing}) with ${STAGING_DIGEST}. Restoring or re-releasing an existing version needs a human-approved republish."
                 exit 1
               fi
@@ -454,6 +523,7 @@ jobs:
               exit 1
             fi
             echo "${tag}=${digest}" >> "$GITHUB_OUTPUT"
+            echo "| GHCR | \`${tag}\` | \`${digest}\` |" >> "$journal"
             echo "promoted ${repo}:${tag} ${digest}"
           done <<< "$TAGS"
 
@@ -465,36 +535,47 @@ jobs:
           NAMESPACE: ${{ needs.build.outputs.namespace }}
           REPO_OWNER: ${{ steps.targets.outputs.owner }}
           TAGS: ${{ steps.targets.outputs.tags }}
-          STAGING_TAG: ${{ needs.validate.outputs.staging_tag }}
+          TESTED_DIGEST: ${{ needs.build.outputs.digest }}
+          HUB_DIGEST: ${{ needs.build.outputs.hub_digest }}
           CHANNEL: ${{ needs.validate.outputs.channel }}
         run: |
           set -euo pipefail
           namespace="${NAMESPACE:-$REPO_OWNER}"
           namespace="${namespace,,}"
           repo="${namespace}/privacyidea"
-          staging_ref="${repo}:${STAGING_TAG}"
-          staging_digest=$(docker buildx imagetools inspect "$staging_ref" --format '{{.Manifest.Digest}}')
+
+          # Promote the immutable tested digest, not a mutable staging tag.
+          # The build job already asserted Hub staging equals the GHCR tested
+          # index; this is the second, independent check before any write.
+          if [[ "${HUB_DIGEST:?}" != "${TESTED_DIGEST:?}" ]]; then
+            echo "::error::Docker Hub staging digest ${HUB_DIGEST} is not the tested digest ${TESTED_DIGEST}"
+            exit 1
+          fi
+          source="${repo}@${TESTED_DIGEST}"
+          journal="${RUNNER_TEMP}/promotion-journal.md"
           while IFS= read -r tag; do
             [[ -n "$tag" ]] || continue
             existing=$(docker buildx imagetools inspect "${repo}:${tag}" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
-            if [[ -n "$existing" && "$existing" == "$staging_digest" ]]; then
+            if [[ -n "$existing" && "$existing" == "$TESTED_DIGEST" ]]; then
               echo "${tag}=${existing}" >> "$GITHUB_OUTPUT"
+              echo "| Docker Hub | \`${tag}\` | \`${existing}\` |" >> "$journal"
               echo "${repo}:${tag} already points at the tested digest"
               continue
             fi
-            if [[ -n "$existing" && "$existing" != "$staging_digest" ]]; then
-              if [[ "$CHANNEL" == "release" && "$tag" != "latest" && "$tag" != sha-* ]]; then
-                echo "::error::Refusing to overwrite published tag ${repo}:${tag} (${existing}) with ${staging_digest}. Restoring or re-releasing an existing version needs a human-approved republish."
+            if [[ -n "$existing" && "$existing" != "$TESTED_DIGEST" ]]; then
+              if [[ "$CHANNEL" == "release" && "$tag" != sha-* ]]; then
+                echo "::error::Refusing to overwrite published tag ${repo}:${tag} (${existing}) with ${TESTED_DIGEST}. Restoring or re-releasing an existing version needs a human-approved republish."
                 exit 1
               fi
             fi
-            docker buildx imagetools create --tag "${repo}:${tag}" "$staging_ref"
+            docker buildx imagetools create --tag "${repo}:${tag}" "$source"
             digest=$(docker buildx imagetools inspect "${repo}:${tag}" --format '{{.Manifest.Digest}}')
-            if [[ "$digest" != "$staging_digest" ]]; then
-              echo "::error::Promoted ${repo}:${tag} digest ${digest} differs from tested staging digest ${staging_digest}"
+            if [[ "$digest" != "$TESTED_DIGEST" ]]; then
+              echo "::error::Promoted ${repo}:${tag} digest ${digest} differs from tested staging digest ${TESTED_DIGEST}"
               exit 1
             fi
             echo "${tag}=${digest}" >> "$GITHUB_OUTPUT"
+            echo "| Docker Hub | \`${tag}\` | \`${digest}\` |" >> "$journal"
             echo "promoted ${repo}:${tag} ${digest}"
           done <<< "$TAGS"
 
@@ -506,7 +587,6 @@ jobs:
           CHANNEL: ${{ needs.validate.outputs.channel }}
           STAGING_DIGEST: ${{ needs.build.outputs.digest }}
           TAGS: ${{ steps.targets.outputs.tags }}
-          OWNER: ${{ steps.targets.outputs.owner }}
           DOCKERHUB_ENABLED: ${{ needs.build.outputs.dockerhub }}
           GHCR_TAGS: ${{ toJSON(steps.promote_ghcr.outputs) }}
           DOCKERHUB_TAGS: ${{ toJSON(steps.promote_dockerhub.outputs) }}
@@ -532,6 +612,8 @@ jobs:
             fi
             echo
             echo "Both platform images were tested on native amd64 and arm64 runners before promotion. The tested GHCR index digest is \`${STAGING_DIGEST}\`."
+            echo
+            echo "Provenance and SBOM are attached to the GHCR index. Their availability on Docker Hub after the same-registry copy is not verified; pin and verify against GHCR when attestations matter."
             if [[ "$CHANNEL" == "edge" ]]; then
               echo
               echo "This is an \`edge\` build from \`main\`; it is not a stable release."
@@ -540,6 +622,9 @@ jobs:
           echo "path=${notes}" >> "$GITHUB_OUTPUT"
           cat "$notes" >> "$GITHUB_STEP_SUMMARY"
 
+      # The release is the durable ordering record: it exists before latest
+      # moves. If the pointer write fails, latest lags the ledger (safe); it
+      # never gets ahead of it.
       - name: Create GitHub release
         if: needs.validate.outputs.channel == 'release'
         uses: softprops/action-gh-release@28ab305d0ffa26d60ec4bd614126329e26c7a0ec # v3.0.4
@@ -551,6 +636,54 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Promote latest pointer
+        if: needs.validate.outputs.channel == 'release' && steps.targets.outputs.move_latest == 'true'
+        shell: bash
+        env:
+          OWNER: ${{ steps.targets.outputs.owner }}
+          NAMESPACE: ${{ needs.build.outputs.namespace }}
+          DOCKERHUB_ENABLED: ${{ needs.build.outputs.dockerhub }}
+          TESTED_DIGEST: ${{ needs.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          journal="${RUNNER_TEMP}/promotion-journal.md"
+
+          promote_latest() {
+            label="$1"
+            repo="$2"
+            existing=$(docker buildx imagetools inspect "${repo}:latest" --format '{{.Manifest.Digest}}' 2>/dev/null || true)
+            if [[ -n "$existing" && "$existing" == "$TESTED_DIGEST" ]]; then
+              echo "| ${label} | \`latest\` | \`${existing}\` |" >> "$journal"
+              echo "${repo}:latest already points at the tested digest"
+              return 0
+            fi
+            docker buildx imagetools create --tag "${repo}:latest" "${repo}@${TESTED_DIGEST}"
+            digest=$(docker buildx imagetools inspect "${repo}:latest" --format '{{.Manifest.Digest}}')
+            if [[ "$digest" != "$TESTED_DIGEST" ]]; then
+              echo "::error::Promoted ${repo}:latest digest ${digest} differs from tested digest ${TESTED_DIGEST}"
+              exit 1
+            fi
+            echo "| ${label} | \`latest\` | \`${digest}\` |" >> "$journal"
+            echo "promoted ${repo}:latest ${digest}"
+          }
+
+          promote_latest "GHCR" "ghcr.io/${OWNER}/privacyidea"
+          if [[ "$DOCKERHUB_ENABLED" == "true" ]]; then
+            promote_latest "Docker Hub" "${NAMESPACE}/privacyidea"
+          fi
+
+      # Uploaded even on failure: this is the evidence a human needs to
+      # reconcile a partial publication (version, run, tested digest, and each
+      # tag actually written).
+      - name: Upload promotion journal
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-promotion-${{ needs.validate.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/promotion-journal.md
+          retention-days: 90
+          if-no-files-found: warn
+
       - name: Publication summary
         if: always()
         shell: bash
@@ -558,11 +691,20 @@ jobs:
           VERSION: ${{ needs.validate.outputs.version }}
           CHANNEL: ${{ needs.validate.outputs.channel }}
           MOVE_LATEST: ${{ steps.targets.outputs.move_latest }}
+          TESTED_DIGEST: ${{ needs.build.outputs.digest }}
         run: |
+          journal="${RUNNER_TEMP}/promotion-journal.md"
           {
             echo "## Publication"
             echo
             echo "- Channel: ${CHANNEL}"
             echo "- Version: ${VERSION}"
+            echo "- Tested digest: ${TESTED_DIGEST:-unknown}"
             echo "- latest moved: ${MOVE_LATEST:-unknown}"
+            echo
+            if [[ -s "$journal" ]]; then
+              cat "$journal"
+            else
+              echo "Promotion journal unavailable; see the workflow log."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
