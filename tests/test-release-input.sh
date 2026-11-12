@@ -330,3 +330,4 @@ if [[ "$wiring_failed" -ne 0 ]]; then
 fi
 
 echo "all ${passed} release input cases passed"
+bash "${repo_root}/tests/test-release-promotion.sh"
