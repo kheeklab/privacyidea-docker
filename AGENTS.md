@@ -49,7 +49,8 @@ rootfs/usr/local/bin/      privacyidea_entrypoint.sh, configure_privacyidea.sh, 
 rootfs/opt/privacyidea/    gunicorn_conf.py, pi-logging.yml
 rootfs/opt/templates/      pi-config.template
 example/                   docker-compose-posgresql.yml
-.github/workflows/         release.yml (buildx CI), check-pi-version.yml (daily tag sync)
+.github/workflows/         ci.yml (PR CI), release.yml (release pipeline), check-pi-version.yml (daily tag sync)
+docs/release-runbook.md    release preconditions, partial-publication recovery, latest repair, retention
 ```
 
 ## Runtime contract
