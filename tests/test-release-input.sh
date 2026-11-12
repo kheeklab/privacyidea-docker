@@ -296,8 +296,8 @@ run: .github/scripts/resolve-release-input.sh
 ROUTE: ${{ needs.validate.outputs.route }}
 IDENTITY: ${{ needs.reserve.outputs.identity }}
 PI_REQUIREMENTS_REF=${{ needs.validate.outputs.requirements_ref }}
-run: .github/scripts/promote-release.sh reserve
-run: .github/scripts/promote-release.sh promote
+run: bash .github/scripts/promote-release.sh reserve
+run: bash .github/scripts/promote-release.sh promote
 if: needs.validate.outputs.route == 'numeric'
 EOF
 
