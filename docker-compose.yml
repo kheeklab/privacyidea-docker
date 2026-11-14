@@ -1,31 +1,30 @@
+version: '2.1'
+
 services:
   pi-db:
-    profiles: [unqualified-reference]
     image: 'docker.io/bitnami/mariadb:10.4'
+    ports:
+      - '3306:3306'
     environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
       - MARIADB_DATABASE=privacyidea
       - MARIADB_USER=privacyidea
-      - MARIADB_ROOT_PASSWORD=${PI_DB_ROOT_PASSWORD:?Set PI_DB_ROOT_PASSWORD in .env}
-      - MARIADB_PASSWORD=${PI_DB_PASSWORD:?Set PI_DB_PASSWORD in .env}
-    volumes:
-      - pi_db_data:/bitnami/mariadb
+      - MARIADB_PASSWORD=privacyidea@123
   pi:
-    profiles: [unqualified-reference]
-    image: ${IMAGE:-kheeklab/privacyidea}:${IMAGE_TAG:-dev}
     build: .
     ports:
-      - '127.0.0.1:8080:8080'
+      - '8080:8080'
     environment:
       - PI_DB_VENDOR=mariadb
-      - PI_DB_NAME=${PI_DB_NAME:?Set PI_DB_NAME for an already-provisioned database}
-      - PI_DB_HOST=${PI_DB_HOST:?Set PI_DB_HOST for an already-provisioned database}
-      - PI_DB_USER=${PI_DB_USER:?Set PI_DB_USER for an already-provisioned database}
-      - PI_DB_PASSWORD=${PI_DB_PASSWORD:?Set PI_DB_PASSWORD in .env}
-      - PI_SECRET_KEY=${PI_SECRET_KEY:?Set PI_SECRET_KEY in .env}
-      - PI_PEPPER=${PI_PEPPER:?Set PI_PEPPER in .env}
-      - PI_ADMIN_USER=${PI_ADMIN_USER:?Set PI_ADMIN_USER in .env}
-      - PI_ADMIN_PASSWORD=${PI_ADMIN_PASSWORD:?Set PI_ADMIN_PASSWORD in .env}
-      - PI_SKIP_BOOTSTRAP=true
+      - PI_DB_NAME="privacyidea"
+      - PI_DB_HOST="pi-db"
+      - PI_DB_USER="privacyidea"
+      - PI_DB_PASSWORD=privacyidea@123
+      - PI_SECRET_KEY="suppersecretkey"
+      - PI_PEPPER="secretworduseforadminencrypt"
+      - PI_ADMIN_USER=admin
+      - PI_ADMIN_PASSWORD=privacyidea
       - PI_PAGE_TITLE=pivacyIDEA
       - PI_SUPERUSER_REALM="administrator,api"
       - PI_DB_ARGS="ssl_check_hostname=false"
@@ -33,20 +32,19 @@ services:
     depends_on:
       - pi-db
   wp-db:
-    profiles: [wordpress-reference]
     image: 'docker.io/bitnami/mariadb:10.4'
+    ports:
+      - '3307:3306'
     environment:
+      # ALLOW_EMPTY_PASSWORD is recommended only for development.
+      - ALLOW_EMPTY_PASSWORD=yes
       - MARIADB_DATABASE=wordpress
       - MARIADB_USER=wordpress
-      - MARIADB_ROOT_PASSWORD=${WP_DB_ROOT_PASSWORD:?Set WP_DB_ROOT_PASSWORD in .env}
-      - MARIADB_PASSWORD=${WP_DB_PASSWORD:?Set WP_DB_PASSWORD in .env}
-    volumes:
-      - wp_db_data:/bitnami/mariadb
+      - MARIADB_PASSWORD=wordpress
   wp:
-    profiles: [wordpress-reference]
     image: docker.io/bitnami/wordpress:6
     ports:
-      - '127.0.0.1:8081:8080'
+      - '8081:8080'
     depends_on:
       - wp-db
     environment:
@@ -54,8 +52,4 @@ services:
       - WORDPRESS_DATABASE_PORT_NUMBER=3306
       - WORDPRESS_DATABASE_USER=wordpress
       - WORDPRESS_DATABASE_NAME=wordpress
-      - WORDPRESS_DATABASE_PASSWORD=${WP_DB_PASSWORD:?Set WP_DB_PASSWORD in .env}
-
-volumes:
-  pi_db_data:
-  wp_db_data:
+      - WORDPRESS_DATABASE_PASSWORD=wordpress

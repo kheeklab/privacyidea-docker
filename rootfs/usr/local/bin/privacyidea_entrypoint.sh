@@ -20,26 +20,6 @@ function main {
     fi
     export PI_MOUNT_DIR
 
-    if [ "${PI_SKIP_BOOTSTRAP:-false}" = true ] && [ "${PI_AUTO_UPDATE:-false}" = true ]; then
-        echo "[ERROR] PI_AUTO_UPDATE cannot be used with PI_SKIP_BOOTSTRAP." >&2
-        return 1
-    fi
-
-    # Validate before invoking hooks or writing configuration on a fresh start.
-    if [ "${PI_SKIP_BOOTSTRAP:-false}" != true ] && [ ! -f "${PI_DATA_DIR}/.privacyidea_initialized" ]; then
-        if [ -z "${PI_ADMIN_USER:-}" ] || [ -z "${PI_ADMIN_PASSWORD:-}" ]; then
-            echo "[ERROR] PI_ADMIN_USER and PI_ADMIN_PASSWORD must both be set for initial bootstrap." >&2
-            return 1
-        fi
-        echo "[ERROR] Automatic bootstrap is unavailable: no backend and topology combination is qualified." >&2
-        return 1
-    fi
-
-    # Inspect marked installations before any image-controlled hook can mutate state.
-    if [ "${PI_SKIP_BOOTSTRAP:-false}" != true ]; then
-        /usr/local/bin/configure_privacyidea.sh --check-initialized
-    fi
-
     # Execute any pre-configuration scripts.
     execute_scripts /usr/local/privacyidea/scripts/pre-configure
 

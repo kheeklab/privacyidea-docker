@@ -35,8 +35,8 @@
 #   GITHUB_SHA, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT
 #   GITHUB_OUTPUT      when set, key=value outputs are appended there
 #
-# Outputs: route, version, identity, requirements_ref, requirements_commit,
-#          requirements_sha256, artifact_hashes, channel, staging_tag, sha_short, ref_date, sequence
+# Outputs: route, version, identity, requirements_ref, channel, staging_tag,
+#          sha_short, ref_date, sequence
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -56,8 +56,6 @@ input_channel="${INPUT_CHANNEL:-}"
 input_version="${INPUT_VERSION:-}"
 min_version="${PI_MIN_SUPPORTED_VERSION:-3.14}"
 upstream_git_url="${PI_UPSTREAM_GIT_URL:-https://github.com/privacyidea/privacyidea.git}"
-requirements_commit_override="${UPSTREAM_REQUIREMENTS_COMMIT:-}"
-requirements_sha256_override="${UPSTREAM_REQUIREMENTS_SHA256:-}"
 
 release_example='release: gh workflow run release.yml --ref v<version> -f pi_version=<version> (or pick the v<version> tag in the "Use workflow from" dropdown)'
 rebuild_example='rebuild: gh workflow run release.yml --ref v<version>-<YYYYMMDD> (pick the rebuild tag in the "Use workflow from" dropdown; pi_version may be omitted)'
@@ -223,49 +221,6 @@ if [[ "$route" == "numeric" || "$route" == "rebuild" ]]; then
   [[ "$version" =~ $NUMERIC_VERSION_RE ]] || fail "version ${version} is not a valid release version"
 fi
 
-# Bind every route to its version-specific universal wheel hash. Tests inject
-# deterministic values; workflows resolve the expected hash from PyPI JSON.
-if [[ -n "${PYPI_ARTIFACT_HASHES:-}" ]]; then
-  artifact_hashes="$PYPI_ARTIFACT_HASHES"
-else
-  artifact_metadata="$(mktemp)"
-  trap 'rm -f "$artifact_metadata"' EXIT
-  curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused \
-    "https://pypi.org/pypi/privacyIDEA/${version}/json" -o "$artifact_metadata"
-  artifact_hashes=$(python3 "${script_dir}/../../scripts/resolve-pypi-artifact-hashes.py" "$version" "$artifact_metadata") \
-    || fail "could not resolve a hash-verified universal wheel for privacyIDEA ${version}"
-fi
-[[ "$artifact_hashes" =~ ^[0-9a-f]{64}(,[0-9a-f]{64})*$ ]] \
-  || fail "invalid PyPI artifact hash set for privacyIDEA ${version}"
-
-requirements_ref=$(resolve_requirements_ref "$version")
-
-# Resolve requirements.txt to an immutable commit and verify its content.
-# Workflow tests provide fixed overrides so they do not depend on network state.
-if [[ -n "$requirements_commit_override" || -n "$requirements_sha256_override" ]]; then
-  [[ "$requirements_commit_override" =~ ^[0-9a-f]{40}$ ]] \
-    || fail "UPSTREAM_REQUIREMENTS_COMMIT must be a 40-character lowercase commit SHA"
-  [[ "$requirements_sha256_override" =~ ^[0-9a-f]{64}$ ]] \
-    || fail "UPSTREAM_REQUIREMENTS_SHA256 must be a 64-character lowercase SHA-256"
-  requirements_commit="$requirements_commit_override"
-  requirements_sha256="$requirements_sha256_override"
-else
-  tag_ref="refs/tags/${requirements_ref}"
-  refs=$(git ls-remote --tags "$upstream_git_url" "$tag_ref" "${tag_ref}^{}" 2>/dev/null) \
-    || fail "could not resolve immutable upstream commit for ${requirements_ref}"
-  requirements_commit=$(printf '%s\n' "$refs" | awk -v peeled="${tag_ref}^{}" -v direct="$tag_ref" '$2 == peeled { print $1; found=1; exit } END { if (!found) exit 1 }') \
-    || requirements_commit=$(printf '%s\n' "$refs" | awk -v direct="$tag_ref" '$2 == direct { print $1; found=1; exit } END { if (!found) exit 1 }') \
-    || fail "upstream tag ${requirements_ref} has no resolvable commit"
-  [[ "$requirements_commit" =~ ^[0-9a-f]{40}$ ]] \
-    || fail "upstream returned invalid commit for ${requirements_ref}"
-  requirements_sha256=$(curl -fsSL --retry 3 \
-    "https://raw.githubusercontent.com/privacyidea/privacyidea/${requirements_commit}/requirements.txt" \
-    | sha256sum | awk '{print $1}') \
-    || fail "could not fetch requirements.txt at upstream commit ${requirements_commit}"
-  [[ "$requirements_sha256" =~ ^[0-9a-f]{64}$ ]] \
-    || fail "upstream requirements.txt checksum is invalid"
-fi
-
 sha_full="${GITHUB_SHA:?GITHUB_SHA is required}"
 sha_short="${sha_full:0:12}"
 [[ "$sha_short" =~ ^[0-9a-f]{12}$ ]] || fail "unexpected SHA ${sha_full}"
@@ -283,9 +238,6 @@ outputs=$(
   printf 'version=%s\n' "$version"
   printf 'identity=%s\n' "${identity:-}"
   printf 'requirements_ref=%s\n' "$requirements_ref"
-  printf 'requirements_commit=%s\n' "$requirements_commit"
-  printf 'requirements_sha256=%s\n' "$requirements_sha256"
-  printf 'artifact_hashes=%s\n' "$artifact_hashes"
   printf 'channel=%s\n' "$channel"
   printf 'staging_tag=%s\n' "$staging_tag"
   printf 'sha_short=%s\n' "$sha_short"
@@ -297,4 +249,4 @@ if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
   printf '%s\n' "$outputs" >> "$GITHUB_OUTPUT"
 fi
 
-echo "route=${route} channel=${channel} version=${version} identity=${identity:-none} requirements_ref=${requirements_ref} requirements_commit=${requirements_commit} requirements_sha256=${requirements_sha256} staging_tag=${staging_tag}"
+echo "route=${route} channel=${channel} version=${version} identity=${identity:-none} requirements_ref=${requirements_ref} staging_tag=${staging_tag}"

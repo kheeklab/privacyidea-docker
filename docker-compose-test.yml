@@ -1,44 +1,21 @@
 services:
-  fixture:
-    image: ${PI_IMAGE:-privacyidea:test}
-    entrypoint: ["/bin/bash", "/test/provision-fixture.sh"]
-    environment:
-      PI_DB_VENDOR: sqlite
-      PI_ADMIN_USER: ${PI_ADMIN_USER:?CI must set PI_ADMIN_USER}
-      PI_ADMIN_PASSWORD: ${PI_ADMIN_PASSWORD:?CI must set PI_ADMIN_PASSWORD}
-      PI_SECRET_KEY: ${PI_SECRET_KEY:?CI must set PI_SECRET_KEY}
-      PI_PEPPER: ${PI_PEPPER:?CI must set PI_PEPPER}
-      PI_SKIP_BOOTSTRAP: "true"
-    volumes:
-      - test_data:/data/privacyidea
-      - test_config:/etc/privacyidea
-      - ./tests/provision-compose-fixture.sh:/test/provision-fixture.sh:ro
   pi-app:
     image: ${PI_IMAGE:-privacyidea:test}
+    build:
+      context: .
+      args:
+        PI_VERSION: main
     environment:
-      PI_DB_VENDOR: sqlite
-      PI_ADMIN_USER: ${PI_ADMIN_USER:?CI must set PI_ADMIN_USER}
-      PI_ADMIN_PASSWORD: ${PI_ADMIN_PASSWORD:?CI must set PI_ADMIN_PASSWORD}
-      PI_SECRET_KEY: ${PI_SECRET_KEY:?CI must set PI_SECRET_KEY}
-      PI_PEPPER: ${PI_PEPPER:?CI must set PI_PEPPER}
-      PI_SKIP_BOOTSTRAP: "true"
-    volumes:
-      - test_data:/data/privacyidea
-      - test_config:/etc/privacyidea
-    depends_on:
-      fixture:
-        condition: service_completed_successfully
+      - PI_SECRET_KEY="suppersecretkey"
+      - PI_PEPPER="secretworduseforadminencrypt"
+      - PI_PAGE_TITLE=pivacyIDEA
+      - PI_BASE_URL=http://localhost:8080
   sut:
-    image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
-    depends_on:
-      pi-app:
-        condition: service_started
-    environment:
-      SOURCE_BRANCH: ${SOURCE_BRANCH:-}
-    command: /tmp/run-tests.sh
-    volumes:
-      - ./run-tests.sh:/tmp/run-tests.sh:ro
-
-volumes:
-  test_data:
-  test_config:
+      image: alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf
+      depends_on:
+        - pi-app
+      environment:
+        - SOURCE_BRANCH
+      command: /tmp/run-tests.sh
+      volumes:
+        - "./run-tests.sh:/tmp/run-tests.sh:ro"
