@@ -1,7 +1,5 @@
-psycopg2==2.9.13 \
-    --hash=sha256:d36784fc2dae69523ba4b79c7d1d1b4d6e83e87836874f111262f4db940b16a6
-gunicorn==26.2.0 \
-    --hash=sha256:bd249d0b3f7972f7432f0a6b6ff3b3ee2d129f70cd1ff6c09a9dd9e29a2b88e3
+psycopg2==2.9.13
+gunicorn==26.2.0
 
 # privacyIDEA 3.14's hash-pinned requirements file installs certifi==2026.7.22,
 # which bundles emSign roots whose intermediate CA keys are compromised
@@ -10,5 +8,4 @@ gunicorn==26.2.0 \
 # dependency. 2026.10.19 is the first release that both drops the compromised
 # roots and restores the unaffected emSign roots; requests 2.34.2 only requires
 # certifi>=2023.5.7, so the upgrade is compatible.
-certifi==2026.10.19 \
-    --hash=sha256:42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b
+certifi==2026.10.19

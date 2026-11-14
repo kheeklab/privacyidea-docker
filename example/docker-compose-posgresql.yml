@@ -1,30 +1,31 @@
 services:
   postgresql:
-    profiles: [unqualified-reference]
     image: postgres:14
+    ports:
+      - '5432:5432'
     environment:
       - POSTGRES_DB=privacyidea
       - POSTGRES_USER=privacyidea
-      - POSTGRES_PASSWORD=${PI_DB_PASSWORD:?Set PI_DB_PASSWORD in .env}
+      - POSTGRES_PASSWORD=privacyidea
     volumes:
       - postgresql_data:/var/lib/postgresql/data
   privacyidea:
-    profiles: [unqualified-reference]
-    image: ${IMAGE:-kheeklab/privacyidea}:${IMAGE_TAG:-dev}
+    image: 'docker.io/kheeklab/privacyidea:dev'
     ports:
-      - '127.0.0.1:8080:8080'
+      - '8080:8080'
     environment:
       - PI_DB_VENDOR=postgresql
       - PI_DB_NAME=privacyidea
       - PI_DB_HOST=postgresql
       - PI_DB_USER=privacyidea
-      - PI_DB_PASSWORD=${PI_DB_PASSWORD:?Set PI_DB_PASSWORD in .env}
-      - PI_SECRET_KEY=${PI_SECRET_KEY:?Set PI_SECRET_KEY in .env}
-      - PI_ADMIN_USER=${PI_ADMIN_USER:?Set PI_ADMIN_USER in .env}
-      - PI_ADMIN_PASSWORD=${PI_ADMIN_PASSWORD:?Set PI_ADMIN_PASSWORD in .env}
-      - PI_PEPPER=${PI_PEPPER:?Set PI_PEPPER in .env}
-      - PI_SKIP_BOOTSTRAP=true
+      - PI_DB_PASSWORD=privacyidea
+      - PI_SECRET_KEY=suppersecretkey
+      - PI_PEPPER=secretworduseforadminencrypt
+      - PI_ADMIN_USER=admin
+      - PI_ADMIN_PASSWORD=privacyidea
       - PI_PAGE_TITLE=pivacyIDEA
+      - PI_SUPERUSER_REALM=administrator,api
+      - PI_DB_ARGS=ssl_check_hostname=false
       - PI_BASE_URL=http://localhost:8080
     depends_on:
       - postgresql
