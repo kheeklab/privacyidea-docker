@@ -48,34 +48,23 @@ To build the image
 make build
 ```
 
+Numeric release builds install the exact `PI_VERSION` selected by the release ref. Edge builds resolve the current PyPI privacyIDEA release at build time. The release workflow resolves upstream `requirements.txt` to a commit and SHA-256, verifies the file, combines its hash-pinned packages with the exact privacyIDEA artifact and hash-pinned local overrides, then installs with `--require-hashes`. Pinned, hash-verified pip, wheel, and setuptools are recorded in a separate build-tool lock. Both locks and source identity are retained under `/usr/share/privacyidea/` in the image. Daily upstream tag synchronization and weekly Dependabot updates remain enabled. Debian packages resolve from the configured Debian suite and are recorded in the image inventory. Package resolution can change between builds; byte-for-byte reproducibility is not claimed.
+
 ## Running
 
-Run it with
+There is no qualified fresh-install quickstart. The repository currently has zero verified database version and storage-topology combinations for automatic bootstrap. `docker-compose.yml` is a reference configuration only: its opt-in profiles do not initialize a database, create keys, or provision an administrator. `PI_SKIP_BOOTSTRAP=true` does not make a fresh or empty database ready to serve.
 
-```console
+Before starting the image, operators must provision and verify the database schema, encryption/audit keys, configuration secrets, and an administrator through a separately qualified process. The selected DB server, exact version, client driver, SQLite library, storage topology, and image digest must be recorded and tested together. Do not treat the bundled MariaDB service as preprovisioned; it starts empty. Avoid `make run`; no such target is provided.
 
-make run
-```
+`make credentials` generates private local values in `.env` with mode `600`; it does not provision a database or make a service usable. Do not commit or share `.env`.
 
-Login to <http://localhost:8080> with **admin/privacyidea**
-
-> [!CAUTION]
-> The default configuration provide in this reposotory contains fixed credentials and encryption keys for testing and demo purposes. It should not be used in a production environment.Please refer to the [configuration](#configuration) section below for more details.
->
-> **Additional notes:**
->
-> - Production environments should use environment variables or other secure methods to store sensitive information.
-> - Fixed credentials and encryption keys can be easily compromised if exposed, leading to security breaches.
-> - It is important to take all necessary precautions to protect sensitive data in production environments.
+Changing image or environment values does not rotate an administrator on an initialized data volume. Preserve the database and matching keys during upgrades. Exact version-supported rotation and recovery commands remain unverified; do not improvise a reset or delete data/key volumes.
 
 ## Configuration
 
 ### Admin credentials
 
-The kheeklab privacyIDEA container can create a default admin user by setting the following environment variables:
-
-- `PI_ADMIN_USER`: Administrator default user. Default: **admin**.
-- `PI_ADMIN_PASSWORD`:  Administrator default password. Default: **privacyidea**
+For initial account creation, deployments must provide explicit, nonempty `PI_ADMIN_USER` and `PI_ADMIN_PASSWORD` to a separately qualified bootstrap process. This image configuration does not establish that any backend/topology is qualified. Existing initialized installations keep their account; changing these variables does not rotate it.
 
 ## Environment variables
 
@@ -83,8 +72,8 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 
 | Environment Variable | Description | Default |
 | :------------------- | :---------- | :------ |
-| `PI_ADMIN_USER` | Initial admin user for privacyIDEA login | admin |
-| `PI_ADMIN_PASSWORD` | Initial admin password | privacyidea |
+| `PI_ADMIN_USER` | Initial admin user for a separately qualified initial provisioner | No qualified automatic bootstrap path |
+| `PI_ADMIN_PASSWORD` | Initial admin password for a separately qualified initial provisioner | No qualified automatic bootstrap path |
 | `PI_DB_VENDOR` | Database vendor | sqlite |
 | `PI_DB_USER` | Database user | |
 | `PI_DB_PASSWORD` | Database password (plain text; must not be URL-encoded) | |
@@ -105,13 +94,13 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 | `PI_LOGCONFIG` | privacyIDEA logging configuration file (YAML, loaded via `logging.config.dictConfig`) | /opt/privacyidea/pi-logging.yml |
 | `PI_SECRET_KEY` | This is used to encrypt the auth_token | |
 | `PI_SUPERUSER_REALM` | The realm, where users are allowed to login as administrators in comma separated value | administrator |
-| `PI_SKIP_BOOTSTRAP` | Set this to true to force skipping bootstrap. Bootstrap runs only on first start, tracked by a marker file in `PI_DATA_DIR` | false |
-| `PI_AUTO_UPDATE` | Set this to true to upgrade the privacyIDEA schema when the system is initialized (including when `PI_SKIP_BOOTSTRAP` is true) | false |
+| `PI_SKIP_BOOTSTRAP` | Explicit external-provisioning bypass; it does not validate readiness or provide recovery | false |
+| `PI_AUTO_UPDATE` | At a verified schema head this is a no-op; automatic migrations are disabled | false |
 | `PI_SSLPORT` | Use https instead of http and listen on this port. To make this work bind mount or copy the private key and the certificate into /etc/privacyidea/server.{key,crt} | 8443 |
 
 > [!WARNING]
-> Bootstrap runs only once, on first start, and records initialization in `PI_DATA_DIR`. Setting `PI_SKIP_BOOTSTRAP` to **true** forces bootstrap to be skipped; it does not overwrite admin credentials or keys. For non-SQLite databases, startup refuses to generate new keys if privacyIDEA data exists but key files are missing.
-> `PI_AUTO_UPDATE` set to **true** will update privacyIDEA to the latest version. Make sure you have backup your data before setting `PI_AUTO_UPDATE` to **true**.
+> This repository currently qualifies zero automatic-bootstrap backend/topology combinations. `PI_SKIP_BOOTSTRAP=true` bypasses table, key, and administrator creation; it does not certify a fresh database or make an empty schema ready. The initialized marker records prior setup; it does not prove that the configured database and key state match.
+> Guarded initialized startup rejects non-head or uncertain schemas, SQLite WAL/sidecar states, and SQLite databases over 64 MiB. `PI_SKIP_BOOTSTRAP=true` together with `PI_AUTO_UPDATE=true` is rejected. No automatic schema migration is qualified. See `docs/bootstrap-state.md` for startup restrictions and backup guidance.
 
 ### gunicorn environment variables
 

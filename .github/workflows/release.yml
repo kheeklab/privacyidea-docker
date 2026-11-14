@@ -60,6 +60,9 @@ jobs:
       route: ${{ steps.validate.outputs.route }}
       identity: ${{ steps.validate.outputs.identity }}
       requirements_ref: ${{ steps.validate.outputs.requirements_ref }}
+      requirements_commit: ${{ steps.validate.outputs.requirements_commit }}
+      requirements_sha256: ${{ steps.validate.outputs.requirements_sha256 }}
+      artifact_hashes: ${{ steps.validate.outputs.artifact_hashes }}
       channel: ${{ steps.validate.outputs.channel }}
       staging_tag: ${{ steps.validate.outputs.staging_tag }}
       sha_short: ${{ steps.validate.outputs.sha_short }}
@@ -150,6 +153,9 @@ jobs:
           REF_NAME: ${{ github.ref_name }}
           GHCR_REPO: ${{ steps.targets.outputs.ghcr_repo }}
           REQUIREMENTS_REF: ${{ needs.validate.outputs.requirements_ref }}
+          REQUIREMENTS_COMMIT: ${{ needs.validate.outputs.requirements_commit }}
+          REQUIREMENTS_SHA256: ${{ needs.validate.outputs.requirements_sha256 }}
+          ARTIFACT_HASHES: ${{ needs.validate.outputs.artifact_hashes }}
           COMMIT_SHA: ${{ github.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
           INTENTS_REMOTE_URL: https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
@@ -254,6 +260,9 @@ jobs:
           build-args: |
             PI_VERSION=${{ needs.validate.outputs.version }}
             PI_REQUIREMENTS_REF=${{ needs.validate.outputs.requirements_ref }}
+            PI_ARTIFACT_HASHES=${{ needs.validate.outputs.artifact_hashes }}
+            PI_REQUIREMENTS_COMMIT=${{ needs.validate.outputs.requirements_commit }}
+            PI_REQUIREMENTS_SHA256=${{ needs.validate.outputs.requirements_sha256 }}
           provenance: mode=max
           sbom: true
           cache-from: type=gha
@@ -314,6 +323,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Prepare disposable provisioned fixture credentials
+        run: |
+          set -euo pipefail
+          printf 'PI_ADMIN_USER=ci-admin\n' >> "$GITHUB_ENV"
+          printf 'PI_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          printf 'PI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          printf 'PI_PEPPER=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
       - name: Log in to GHCR (read only)
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -356,11 +373,10 @@ jobs:
       - name: Container structure test
         run: container-structure-test test --image privacyidea:test --config structure-tests.yaml
 
-      - name: Integration test
+      - name: Smoke test with provisioned SQLite fixture (bootstrap disabled)
         run: |
           set -euo pipefail
-          docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120
-          docker compose --file docker-compose-test.yml down -v
+          bash tests/run-provisioned-compose-smoke.sh
 
       - name: Assert installed privacyIDEA version
         env:
@@ -518,6 +534,9 @@ jobs:
           IDENTITY: ${{ needs.reserve.outputs.identity }}
           REF_NAME: ${{ github.ref_name }}
           REQUIREMENTS_REF: ${{ needs.validate.outputs.requirements_ref }}
+          REQUIREMENTS_COMMIT: ${{ needs.validate.outputs.requirements_commit }}
+          REQUIREMENTS_SHA256: ${{ needs.validate.outputs.requirements_sha256 }}
+          ARTIFACT_HASHES: ${{ needs.validate.outputs.artifact_hashes }}
           GHCR_REPO: ${{ steps.targets.outputs.ghcr_repo }}
           HUB_ENABLED: 'true'
           HUB_REPO: ${{ steps.targets.outputs.hub_repo }}
@@ -545,6 +564,9 @@ jobs:
           VERSION: ${{ needs.validate.outputs.version }}
           IDENTITY: ${{ needs.reserve.outputs.identity }}
           REQUIREMENTS_REF: ${{ needs.validate.outputs.requirements_ref }}
+          REQUIREMENTS_COMMIT: ${{ needs.validate.outputs.requirements_commit }}
+          REQUIREMENTS_SHA256: ${{ needs.validate.outputs.requirements_sha256 }}
+          ARTIFACT_HASHES: ${{ needs.validate.outputs.artifact_hashes }}
           TESTED_DIGEST: ${{ steps.tested.outputs.digest }}
           GHCR_DATED: ${{ steps.promote.outputs.ghcr_dated }}
           HUB_DATED: ${{ steps.promote.outputs.hub_dated }}
@@ -571,6 +593,8 @@ jobs:
             echo "| Git ref | \`${GITHUB_REF_NAME}\` |"
             echo "| Commit | \`${GITHUB_SHA}\` |"
             echo "| Upstream requirements ref | \`${REQUIREMENTS_REF}\` |"
+            echo "| Upstream requirements commit | \`${REQUIREMENTS_COMMIT}\` |"
+            echo "| Upstream requirements SHA-256 | \`${REQUIREMENTS_SHA256}\` |"
             echo "| Tested multi-arch index digest | \`${TESTED_DIGEST}\` |"
             echo
             echo "| Registry | Tag | Digest |"

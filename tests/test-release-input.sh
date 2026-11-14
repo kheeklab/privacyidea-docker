@@ -19,6 +19,8 @@ trap 'rm -rf "$tmp"' EXIT
 test_sha="5e31c9a28ebd033a23997c907690ec8014654bc2"
 test_run_id="43178109188"
 test_attempt="1"
+test_requirements_commit="0123456789abcdef0123456789abcdef01234567"
+test_requirements_sha256="89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567"
 
 today="$(date -u +%Y%m%d)"
 yesterday="$(date -u -d '1 day ago' +%Y%m%d)"
@@ -70,6 +72,10 @@ assert_case() {
     GITHUB_RUN_ID="$test_run_id" \
     GITHUB_RUN_ATTEMPT="$test_attempt" \
     PI_MIN_SUPPORTED_VERSION="3.14" \
+    PYPI_ARTIFACT_HASHES="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" \
+    UPSTREAM_TAGS_FILE="$upstream_tags" \
+    UPSTREAM_REQUIREMENTS_COMMIT="$test_requirements_commit" \
+    UPSTREAM_REQUIREMENTS_SHA256="$test_requirements_sha256" \
     "$@" \
     bash "$script" >"$tmp/stdout" 2>"$tmp/stderr" || status=$?
 
@@ -112,7 +118,7 @@ rebuild_env=(
 # --- numeric release route -------------------------------------------------
 
 assert_case "release dispatch on a v* tag succeeds" 0 "" \
-  $'route=numeric\nchannel=release\nversion=3.14.1\nidentity=\nrequirements_ref=v3.14.1\nstaging_tag=stg-43178109188-1-3.14.1\nsha_short=5e31c9a28ebd' \
+  $'route=numeric\nchannel=release\nversion=3.14.1\nidentity=\nrequirements_ref=v3.14.1\nrequirements_commit=0123456789abcdef0123456789abcdef01234567\nrequirements_sha256=89abcdef0123456789abcdef0123456789abcdef0123456789abcdef01234567\nartifact_hashes=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nstaging_tag=stg-43178109188-1-3.14.1\nsha_short=5e31c9a28ebd' \
   EVENT_NAME=workflow_dispatch EVENT_REF=refs/tags/v3.14.1 EVENT_REF_TYPE=tag EVENT_REF_NAME=v3.14.1 \
   INPUT_CHANNEL=release INPUT_VERSION=3.14.1
 
