@@ -1,7 +1,7 @@
-LOCAL_DATA_VOLUME=/tmp/privacyidea-data
 REPOSITORY_OWNER := $(shell git remote get-url origin 2>/dev/null | sed -nE '/github\.com[:/]/ { s@^.*github\.com[:/]@@; s@/.*@@; p; }' | tr '[:upper:]' '[:lower:]')
 IMAGE ?= $(if $(REPOSITORY_OWNER),$(REPOSITORY_OWNER)/privacyidea,privacyidea)
 IMAGE_TAG ?= dev
+export IMAGE IMAGE_TAG
 
 help: ## Show this help message
 	@echo "Usage: make [target]"
@@ -15,24 +15,11 @@ build: ## Build image
 push: ## Push image
 	docker push $(IMAGE):$(IMAGE_TAG)
 
-run: cleanup create_volume secretkey pipepper ## Run test
-	docker run -p 8080:8080 -ti --name=privacyidea-dev --env-file=secretkey --env-file=pipepper $(IMAGE):$(IMAGE_TAG)
-
-create_volume:
-	mkdir $(LOCAL_DATA_VOLUME)
-
-secretkey:
-	@echo Creating secretkey
-	@echo PI_SECRET_KEY=$(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) > secretkey
-
-pipepper:
-	@echo Creating pipepper
-	@echo PI_PEPPER=$(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1) > pipepper
+credentials: ## Generate local credentials; does not provision a usable service
+	python3 scripts/create-demo-env.py
 
 cleanup:
-	@if docker ps -a | grep -q privacyidea-dev; then docker stop privacyidea-dev || true; fi
-	@if docker ps -a | grep -q privacyidea-dev; then docker rm privacyidea-dev || true; fi
-	@if [ -d $(LOCAL_DATA_VOLUME) ]; then sudo rm -rf $(LOCAL_DATA_VOLUME); fi
+	docker compose down
 
 test:
 	container-structure-test test --image $(IMAGE):$(IMAGE_TAG) --config structure-tests.yaml

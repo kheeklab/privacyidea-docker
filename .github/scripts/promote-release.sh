@@ -64,6 +64,21 @@ emit_output() {
   fi
 }
 
+validate_intent_requirements() {
+  local intent_path="$1" recorded_commit recorded_sha recorded_artifact_hashes
+  recorded_commit=$(jq -r '.requirements_commit // ""' "$intent_path")
+  recorded_sha=$(jq -r '.requirements_sha256 // ""' "$intent_path")
+  recorded_artifact_hashes=$(jq -r '.artifact_hashes // ""' "$intent_path")
+  [[ -n "$recorded_commit" && -n "$recorded_sha" ]] \
+    || fail "existing intent ${intent_path} lacks immutable requirements evidence; refusing to rebuild or promote it"
+  [[ -n "$recorded_artifact_hashes" ]] \
+    || fail "existing intent ${intent_path} lacks privacyIDEA artifact hash evidence; refusing to rebuild or promote it"
+  [[ "$recorded_commit" == "${REQUIREMENTS_COMMIT:-}" && "$recorded_sha" == "${REQUIREMENTS_SHA256:-}" ]] \
+    || fail "upstream requirements input changed since reservation; refusing to rebuild or promote ${intent_path}"
+  [[ "$recorded_artifact_hashes" == "${ARTIFACT_HASHES:-}" ]] \
+    || fail "privacyIDEA artifact hashes changed since reservation; refusing to rebuild or promote ${intent_path}"
+}
+
 route="${ROUTE:?ROUTE is required}"
 version="${VERSION:?VERSION is required}"
 identity="${IDENTITY:-}"
@@ -82,9 +97,12 @@ run_url="${RUN_URL:-}"
 commit_sha="${COMMIT_SHA:-unknown}"
 max_age_days="${REBUILD_INTENT_MAX_AGE_DAYS:-7}"
 today="${TODAY_UTC:-$(utc_today)}"
+artifact_hashes="${ARTIFACT_HASHES:?ARTIFACT_HASHES is required}"
 
 [[ "$route" == "numeric" || "$route" == "rebuild" ]] || fail "unsupported route '${route}'"
 is_numeric_version "$version" || fail "version '${version}' is not a numeric release version"
+[[ "$artifact_hashes" =~ ^[0-9a-f]{64}(,[0-9a-f]{64})*$ ]] \
+  || fail "ARTIFACT_HASHES must be a comma-separated list of SHA-256 values"
 
 inspect_err="${TMPDIR:-/tmp}/release-inspect-$$.err"
 git_err="${TMPDIR:-/tmp}/release-git-$$.err"
@@ -262,6 +280,7 @@ journal_init() {
     echo "- tested multi-arch index digest: ${tested_digest:-not-yet-built}"
     echo "- run: ${run_url:-unknown}"
     echo "- requirements ref: ${REQUIREMENTS_REF:-unknown}"
+    echo "- privacyIDEA artifact SHA-256 set: ${ARTIFACT_HASHES:-unknown}"
     echo "- upstream numeric ledger highest at promotion: ${ledger_max:-unread}"
     echo "- newer numeric upstream release than this version detected: ${newer_numeric:-not-checked}"
     echo "- latest move: ${move_latest:-not-decided}"
@@ -366,6 +385,7 @@ reserve() {
       # sequence become occupied. Its intent is the authority for reuse.
       [[ "$(jq -r '.version' "$path")" == "$version" && "$(jq -r '.identity' "$path")" == "$identity" ]] \
         || fail "existing intent at ${path} does not match ${version}/${identity}; refusing ambiguous identity reuse"
+      validate_intent_requirements "$path"
       agent_digest=$(jq -r '.tested_digest // ""' "$path")
       if [[ -n "$agent_digest" ]]; then
         action="promote-only"
@@ -393,6 +413,9 @@ reserve() {
         --arg date "$day" \
         --arg sequence "$requested" \
         --arg requirements_ref "${REQUIREMENTS_REF:-}" \
+        --arg requirements_commit "${REQUIREMENTS_COMMIT:-}" \
+        --arg requirements_sha256 "${REQUIREMENTS_SHA256:-}" \
+        --arg artifact_hashes "${ARTIFACT_HASHES:-}" \
         --arg commit "$commit_sha" \
         --arg run "$run_url" \
         --arg at "$(utc_now)" \
@@ -404,6 +427,9 @@ reserve() {
           date_utc: $date,
           sequence: $sequence,
           requirements_ref: $requirements_ref,
+          requirements_commit: $requirements_commit,
+          requirements_sha256: $requirements_sha256,
+          artifact_hashes: $artifact_hashes,
           status: "reserved",
           tested_digest: null,
           expected_previous: null,
@@ -423,6 +449,7 @@ reserve() {
     existing=""
     existing=$(choose_latest_intent) || existing=""
     if [[ -n "$existing" ]]; then
+      validate_intent_requirements "$existing"
       identity=$(jq -r '.identity' "$existing")
       agent_digest=$(jq -r '.tested_digest // ""' "$existing")
       if [[ -n "$agent_digest" ]]; then
@@ -452,6 +479,9 @@ reserve() {
         --arg date "$day" \
         --arg sequence "$requested" \
         --arg requirements_ref "${REQUIREMENTS_REF:-}" \
+        --arg requirements_commit "${REQUIREMENTS_COMMIT:-}" \
+        --arg requirements_sha256 "${REQUIREMENTS_SHA256:-}" \
+        --arg artifact_hashes "${ARTIFACT_HASHES:-}" \
         --arg commit "$commit_sha" \
         --arg run "$run_url" \
         --arg at "$(utc_now)" \
@@ -463,6 +493,9 @@ reserve() {
           date_utc: $date,
           sequence: $sequence,
           requirements_ref: $requirements_ref,
+          requirements_commit: $requirements_commit,
+          requirements_sha256: $requirements_sha256,
+          artifact_hashes: $artifact_hashes,
           status: "reserved",
           tested_digest: null,
           expected_previous: null,
