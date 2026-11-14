@@ -106,10 +106,12 @@ jobs:
       - name: Prepare disposable provisioned fixture credentials
         run: |
           set -euo pipefail
-          printf 'PI_ADMIN_USER=ci-admin\n' >> "$GITHUB_ENV"
-          printf 'PI_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          printf 'PI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          printf 'PI_PEPPER=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          {
+            printf 'PI_ADMIN_USER=ci-admin\n'
+            printf 'PI_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+            printf 'PI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)"
+            printf 'PI_PEPPER=%s\n' "$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
 
       - name: Resolve privacyIDEA version
         id: version

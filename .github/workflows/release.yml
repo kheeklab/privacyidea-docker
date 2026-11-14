@@ -326,10 +326,12 @@ jobs:
       - name: Prepare disposable provisioned fixture credentials
         run: |
           set -euo pipefail
-          printf 'PI_ADMIN_USER=ci-admin\n' >> "$GITHUB_ENV"
-          printf 'PI_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          printf 'PI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-          printf 'PI_PEPPER=%s\n' "$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+          {
+            printf 'PI_ADMIN_USER=ci-admin\n'
+            printf 'PI_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 32)"
+            printf 'PI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)"
+            printf 'PI_PEPPER=%s\n' "$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
 
       - name: Log in to GHCR (read only)
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
