@@ -246,13 +246,17 @@ PY
         fi
 
         # Create encryption key file if missing or empty (must exist before
-        # create_tables to prevent warnings from DockerConfig key lookups)
+        # create_tables to prevent warnings from DockerConfig key lookups).
+        # We generate the 96-byte random key directly using Python rather than
+        # pi-manage setup create_enckey, because pi-manage imports DockerConfig
+        # before create_enckey executes, triggering a missing PI_ENCFILE warning.
         if [ ! -f "$PI_ENCFILE" ] || [ ! -s "$PI_ENCFILE" ]; then
             echo ""
             echo "[INFO] Encryption key file not found or empty, creating a new one..."
             echo ""
             mkdir -p "$(dirname "$PI_ENCFILE")"
-            pi-manage setup create_enckey
+            /opt/privacyidea/bin/python -c 'import os, sys; open(sys.argv[1], "wb").write(os.urandom(96))' "$PI_ENCFILE"
+            chmod 0400 "$PI_ENCFILE"
         fi
 
         # Create database tables
