@@ -9,7 +9,7 @@ services:
       - PI_DB_VENDOR=sqlite
       - PI_ADMIN_USER=${PI_ADMIN_USER:-ci-admin}
       - PI_ADMIN_PASSWORD=${PI_ADMIN_PASSWORD:-ci-admin-password}
-      - PI_SECRET_KEY=suppersecretkey
+      - PI_SECRET_KEY=suppersecretkey_privacyidea_min32bytes_secret!
       - PI_PEPPER=secretworduseforadminencrypt
       - PI_PAGE_TITLE=pivacyIDEA
       - PI_BASE_URL=http://localhost:8080
