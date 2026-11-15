@@ -81,9 +81,7 @@ jobs:
       # The rejection message is the only guard rail GitHub leaves us for the
       # workflow_dispatch ref dropdown, so it is tested like behaviour.
       - name: Test release input resolution
-        run: |
-          bash tests/test-release-input.sh
-          bash tests/test-pypi-artifact-hashes.sh
+        run: bash tests/test-release-input.sh
 
   test:
     name: Test ${{ matrix.arch }}
@@ -103,16 +101,6 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Prepare disposable provisioned fixture credentials
-        run: |
-          set -euo pipefail
-          {
-            printf 'PI_ADMIN_USER=ci-admin\n'
-            printf 'PI_ADMIN_PASSWORD=%s\n' "$(openssl rand -hex 32)"
-            printf 'PI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)"
-            printf 'PI_PEPPER=%s\n' "$(openssl rand -hex 32)"
-          } >> "$GITHUB_ENV"
-
       - name: Resolve privacyIDEA version
         id: version
         env:
@@ -129,17 +117,12 @@ jobs:
             echo "Resolved PyPI version ${version} is below the supported floor ${PI_MIN_SUPPORTED_VERSION}" >&2
             exit 1
           fi
-          curl -fsSL --retry 5 --retry-delay 2 --retry-connrefused \
-            "https://pypi.org/pypi/privacyIDEA/${version}/json" -o /tmp/privacyidea-artifact.json
-          artifact_hashes=$(python3 scripts/resolve-pypi-artifact-hashes.py "$version" /tmp/privacyidea-artifact.json)
-          printf 'artifact_hashes=%s\n' "$artifact_hashes" >> "$GITHUB_OUTPUT"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
 
       - name: Build test image
         env:
           PI_VERSION: ${{ steps.version.outputs.version }}
-          PI_ARTIFACT_HASHES: ${{ steps.version.outputs.artifact_hashes }}
-        run: docker build --build-arg "PI_VERSION=${PI_VERSION}" --build-arg "PI_ARTIFACT_HASHES=${PI_ARTIFACT_HASHES}" -t privacyidea:test .
+        run: docker build --build-arg "PI_VERSION=${PI_VERSION}" -t privacyidea:test .
 
       - name: Install container-structure-test
         env:
@@ -164,10 +147,11 @@ jobs:
       - name: Container structure test
         run: container-structure-test test --image privacyidea:test --config structure-tests.yaml
 
-      - name: Smoke test with provisioned SQLite fixture (bootstrap disabled)
+      - name: Integration test
         run: |
           set -euo pipefail
-          bash tests/run-provisioned-compose-smoke.sh
+          docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120
+          docker compose --file docker-compose-test.yml down -v
 
       - name: Assert installed privacyIDEA version
         env:

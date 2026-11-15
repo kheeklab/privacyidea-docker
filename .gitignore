@@ -6,6 +6,5 @@ Makefile
 pipepper
 README
 secretkey
-.env
 structure-tests-report.xml
 .opencode
