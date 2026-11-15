@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -e
 
-apk --no-cache add curl
+apk --no-cache add curl jq python3
 
 readyz_body=$(mktemp)
 trap 'rm -f "$readyz_body" /tmp/pi_ui_body' 0
@@ -22,6 +22,8 @@ if [ "$readyz_status" != "200" ] || ! grep -Eq '"status"[[:space:]]*:[[:space:]]
     exit 1
 fi
 echo "PI is ready"
+
+sh /tmp/integration-provisioned-api.sh
 
 effective_url=$(curl -sSL --fail -w "%{url_effective}" -o /tmp/pi_ui_body http://pi-app:8080/)
 case "$effective_url" in

@@ -35,9 +35,12 @@ services:
         condition: service_started
     environment:
       SOURCE_BRANCH: ${SOURCE_BRANCH:-}
+      PI_ADMIN_USER: ${PI_ADMIN_USER:?CI must set PI_ADMIN_USER}
+      PI_ADMIN_PASSWORD: ${PI_ADMIN_PASSWORD:?CI must set PI_ADMIN_PASSWORD}
     command: /tmp/run-tests.sh
     volumes:
       - ./run-tests.sh:/tmp/run-tests.sh:ro
+      - ./tests/integration-provisioned-api.sh:/tmp/integration-provisioned-api.sh:ro
 
 volumes:
   test_data:
