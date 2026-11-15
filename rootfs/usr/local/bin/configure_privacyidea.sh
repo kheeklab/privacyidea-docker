@@ -245,13 +245,8 @@ PY
             fi
         fi
 
-        # Create database tables
-        echo ""
-        echo "[INFO] Generating privacyIDEA database tables..."
-        echo ""
-        pi-manage setup create_tables
-
-        # Create encryption key file if missing or empty
+        # Create encryption key file if missing or empty (must exist before
+        # create_tables to prevent warnings from DockerConfig key lookups)
         if [ ! -f "$PI_ENCFILE" ] || [ ! -s "$PI_ENCFILE" ]; then
             echo ""
             echo "[INFO] Encryption key file not found or empty, creating a new one..."
@@ -259,6 +254,12 @@ PY
             mkdir -p "$(dirname "$PI_ENCFILE")"
             pi-manage setup create_enckey
         fi
+
+        # Create database tables
+        echo ""
+        echo "[INFO] Generating privacyIDEA database tables..."
+        echo ""
+        pi-manage setup create_tables
 
         # Create audit keys if missing
         if [ ! -f "$PI_AUDIT_KEY_PRIVATE_PATH" ]; then
