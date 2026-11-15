@@ -95,7 +95,7 @@ gunicorn tuning uses the `GUNICORN_*` variables that `rootfs/opt/privacyidea/gun
 - `/data/privacyidea` — declared VOLUME (Dockerfile:49); holds `privacyidea.db` for SQLite (configure_privacyidea.sh:95), the `.privacyidea_initialized` bootstrap marker (configure_privacyidea.sh:205–210,292), and `/data/privacyidea/keys/` (encfile, private.pem/public.pem; configure_privacyidea.sh:201–203).
 - `/etc/privacyidea` — runtime config `pi.cfg` and TLS material; chowned to nobody (Dockerfile:42–43) but not a declared volume.
 - The image chowns `/data/privacyidea` and `/etc/privacyidea` to `nobody` at build time; bind mounts and reused named volumes do not inherit this ownership. If another UID owns a mount, `nobody` cannot write: SQLite startup fails with `PI_DATA_DIR ... is not writable`, and external-DB key/config writes fail. Use a fresh named volume (which copies ownership on first use) or pre-chown a bind mount to the `nobody` UID.
-- External DB — MariaDB/PostgreSQL via `PI_DB_VENDOR` + the `PI_DB_*` variables; demo stack uses bitnami images with their default env vars (docker-compose.yml:4–30).
+- External DB — MariaDB/PostgreSQL via `PI_DB_VENDOR` + the `PI_DB_*` variables; reference stacks use official images (`mariadb:10.11`, `postgres:14`) with their standard env vars (docker-compose.yml:4–30).
 - There is no backup or restore tooling anywhere in the repo; volume deletion destroys the database and keys with no recovery path in-repo.
 
 ## Conventions in force

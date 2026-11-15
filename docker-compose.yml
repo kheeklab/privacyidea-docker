@@ -1,14 +1,14 @@
 services:
   pi-db:
     profiles: [unqualified-reference]
-    image: 'docker.io/bitnami/mariadb:10.4'
+    image: mariadb:10.11
     environment:
       - MARIADB_DATABASE=privacyidea
       - MARIADB_USER=privacyidea
       - MARIADB_ROOT_PASSWORD=${PI_DB_ROOT_PASSWORD:?Set PI_DB_ROOT_PASSWORD in .env}
       - MARIADB_PASSWORD=${PI_DB_PASSWORD:?Set PI_DB_PASSWORD in .env}
     volumes:
-      - pi_db_data:/bitnami/mariadb
+      - pi_db_data:/var/lib/mysql
   pi:
     profiles: [unqualified-reference]
     image: ${IMAGE:-kheeklab/privacyidea}:${IMAGE_TAG:-dev}
@@ -34,27 +34,26 @@ services:
       - pi-db
   wp-db:
     profiles: [wordpress-reference]
-    image: 'docker.io/bitnami/mariadb:10.4'
+    image: mariadb:10.11
     environment:
       - MARIADB_DATABASE=wordpress
       - MARIADB_USER=wordpress
       - MARIADB_ROOT_PASSWORD=${WP_DB_ROOT_PASSWORD:?Set WP_DB_ROOT_PASSWORD in .env}
       - MARIADB_PASSWORD=${WP_DB_PASSWORD:?Set WP_DB_PASSWORD in .env}
     volumes:
-      - wp_db_data:/bitnami/mariadb
+      - wp_db_data:/var/lib/mysql
   wp:
     profiles: [wordpress-reference]
-    image: docker.io/bitnami/wordpress:6
+    image: wordpress:6
     ports:
-      - '127.0.0.1:8081:8080'
+      - '127.0.0.1:8081:80'
     depends_on:
       - wp-db
     environment:
-      - WORDPRESS_DATABASE_HOST=wp-db
-      - WORDPRESS_DATABASE_PORT_NUMBER=3306
-      - WORDPRESS_DATABASE_USER=wordpress
-      - WORDPRESS_DATABASE_NAME=wordpress
-      - WORDPRESS_DATABASE_PASSWORD=${WP_DB_PASSWORD:?Set WP_DB_PASSWORD in .env}
+      - WORDPRESS_DB_HOST=wp-db:3306
+      - WORDPRESS_DB_USER=wordpress
+      - WORDPRESS_DB_NAME=wordpress
+      - WORDPRESS_DB_PASSWORD=${WP_DB_PASSWORD:?Set WP_DB_PASSWORD in .env}
 
 volumes:
   pi_db_data:
