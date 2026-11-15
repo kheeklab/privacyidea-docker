@@ -1,14 +1,13 @@
 services:
   postgresql:
     profiles: [unqualified-reference]
-    image: 'docker.io/bitnami/postgresql:14'
+    image: postgres:14
     environment:
-      - POSTGRESQL_DATABASE=privacyidea
-      - POSTGRESQL_USERNAME=privacyidea
-      - POSTGRESQL_PASSWORD=${PI_DB_PASSWORD:?Set PI_DB_PASSWORD in .env}
-      - POSTGRESQL_POSTGRES_PASSWORD=${PG_ROOT_PASSWORD:?Set PG_ROOT_PASSWORD in .env}
+      - POSTGRES_DB=privacyidea
+      - POSTGRES_USER=privacyidea
+      - POSTGRES_PASSWORD=${PI_DB_PASSWORD:?Set PI_DB_PASSWORD in .env}
     volumes:
-      - postgresql_data:/bitnami/postgresql
+      - postgresql_data:/var/lib/postgresql/data
   privacyidea:
     profiles: [unqualified-reference]
     image: ${IMAGE:-kheeklab/privacyidea}:${IMAGE_TAG:-dev}
