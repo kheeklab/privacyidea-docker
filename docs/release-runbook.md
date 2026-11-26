@@ -41,6 +41,8 @@ The resolver requires upstream `vV` and exact PyPI package `V` for rebuilds. Doc
 
 ## Promotion and recovery
 
+The local `requirements.txt` pins `certifi==2026.10.23` and is installed last in the builder (`requirements.txt:4-19`; `Dockerfile:43-45`). privacyIDEA 3.14.1 already pins this version upstream ([requirements.txt:192](https://github.com/privacyidea/privacyidea/blob/v3.14.1/requirements.txt#L192)), so the local pin overrides any future newer upstream certifi pin; recheck it at every privacyIDEA bump. The pin retains the GHSA-6q48-6c7w-9gw2 rationale: it keeps the advisory-linked emSign ECC Root CA - G3 absent; 2026.10.23 additionally removes C1 and C3, while G1 remains present (`requirements.txt:4-18`; [GHSA-6q48-6c7w-9gw2](https://github.com/advisories/GHSA-6q48-6c7w-9gw2)).
+
 Before promotion, send one normal request through each supported deployment proxy topology and verify the expected application response. If a proxy or WAF injects or rewrites `Transfer-Encoding` incompatibly, correct its framing and repeat the check before promotion. The supported proxy topologies must be established for each deployment; they are not specified by this repository.
 
 The workflow builds staging tags, tests the same multi-arch index on native amd64 and arm64, verifies installed package version, and runs the blocking CRITICAL Trivy gate. Under the publication lock it reads the full numeric GitHub Releases ledger immediately before deciding `latest`.

@@ -14,8 +14,6 @@
 
 The builder creates `/opt/privacyidea`, installs privacyIDEA’s upstream requirements first, the exact privacyIDEA package next, and local `requirements.txt` overrides last (`Dockerfile:14-45`). `PI_VERSION` defaults to `main` and empty/`main` resolves to the current PyPI privacyIDEA release. The upstream requirements ref defaults to `v<version>`; Dockerfile falls back to `v<major.minor>` if the first ref has no requirements file (`Dockerfile:2-7,17-38`). The runtime image copies the virtual environment and `rootfs`, installs `tini`, runs as `nobody`, declares port `8080/tcp` and volume `/data/privacyidea`, and starts `tini` with the entrypoint (`Dockerfile:48-70`). The application is served by Gunicorn using `privacyidea.app:create_app(...)` (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:39-50`).
 
-`requirements.txt` pins `certifi==2026.10.23`, installed last in the builder (`requirements.txt:4-19`; `Dockerfile:43-45`). privacyIDEA 3.14.1 already pins this version upstream (`requirements.txt:192` at [v3.14.1](https://github.com/privacyidea/privacyidea/blob/v3.14.1/requirements.txt#L192)), so the local pin overrides any future newer upstream certifi pin; recheck it at every privacyIDEA bump. The pin retains the GHSA-6q48-6c7w-9gw2 rationale: it keeps the advisory-linked emSign ECC Root CA - G3 absent; 2026.10.23 additionally removes C1 and C3, while G1 remains present (`requirements.txt:4-18`; [GHSA-6q48-6c7w-9gw2](https://github.com/advisories/GHSA-6q48-6c7w-9gw2)).
-
 ## Build, test, lint, and run commands
 
 Run commands from the repository root. The Makefile defines these targets (`Makefile:6-38`):

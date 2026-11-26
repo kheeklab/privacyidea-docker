@@ -132,7 +132,7 @@ The kheeklab privacyIDEA container can create a default admin user by setting th
 
 The number of workers is calculated as `GUNICORN_WORKERS_PER_CORE` × CPU cores, with a minimum of 2. If `GUNICORN_MAX_WORKERS` is set, the count is capped at that value. `GUNICORN_WEB_CONCURRENCY` overrides the whole calculation and must be greater than 0.
 
-This image pins Gunicorn 27.0.1. Since Gunicorn 27.0.0, requests with a `Transfer-Encoding` value that does not end in `chunked` (such as `identity` or `gzip` alone) receive HTTP 400, and overlong request lines receive HTTP 414 (they received 400 with 26.2.0). Valid chunked bodies and normal `Content-Length` requests still reach the application.
+This image pins Gunicorn 27.0.1. Since Gunicorn 27.0.0, requests with a `Transfer-Encoding` value that does not end in `chunked` (such as `identity` or `gzip` alone) receive HTTP 400, and overlong request lines receive HTTP 414 (they received 400 with 26.2.0). Valid chunked bodies and normal `Content-Length` requests still reach the application. Before promotion, follow the [proxy request check in the release runbook](docs/release-runbook.md#promotion-and-recovery).
 
 ## Providing Files to the Container
 
