@@ -2,17 +2,19 @@
 
 ## Purpose and verified source
 
-`privacyidea-docker` builds a container image that installs privacyIDEA from PyPI on the official Python image (`README.md:5`, `Dockerfile:10,48`). This profile describes tracked `main` at `f3c01c28cefd6f3df6ea2fe95c4653088ee4024e` (2026-11-26). All file references below refer to that commit. Workflow definitions and scripts were inspected; workflow runs, published registry state, and deployment-specific behavior were not independently exercised.
+`privacyidea-docker` builds a container image that installs privacyIDEA from PyPI on the official Python image (`README.md:5`, `Dockerfile:10,48`). This profile describes tracked `main` at `f3c01c28cefd6f3df6ea2fe95c4653088ee4024e` (2026-11-26). All file references below refer to that commit except the dated dependency-pin update below, verified against `main` at `259f8de086a251e9185f333e6df53acb67d26d8c` (2026-11-26). Workflow definitions and scripts were inspected; workflow runs, published registry state, and deployment-specific behavior were not independently exercised.
 
 ## Languages and versions
 
 - Python application/dependencies, based on `python:3.14-slim`, pinned by image index digest (`Dockerfile:1,10,48`). The project installs privacyIDEA from PyPI; the image targets 3.14 and newer (`Dockerfile:17-29,44`; `README.md:30`).
 - Shell scripts run with Bash (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:1-2`; `.github/workflows/ci.yml:59-69`). Workflow tools include actionlint 1.7.12 and container-structure-test 1.22.1 (`.github/workflows/ci.yml:55-69,127-145`).
-- Locally pinned Python overrides are `psycopg2==2.9.13`, `gunicorn==26.2.0`, and `certifi==2026.10.19` (`requirements.txt:1-11`). These are the pins at the recorded commit, not proposed Dependabot versions.
+- Locally pinned Python overrides are `psycopg2==2.9.13`, `gunicorn==27.0.1`, and `certifi==2026.10.23` (`requirements.txt:1-2,19` at `259f8de086a251e9185f333e6df53acb67d26d8c`, 2026-11-26). The psycopg2 pin is unchanged from the profile's recorded commit.
 
 ## Frameworks and image build
 
 The builder creates `/opt/privacyidea`, installs privacyIDEA’s upstream requirements first, the exact privacyIDEA package next, and local `requirements.txt` overrides last (`Dockerfile:14-45`). `PI_VERSION` defaults to `main` and empty/`main` resolves to the current PyPI privacyIDEA release. The upstream requirements ref defaults to `v<version>`; Dockerfile falls back to `v<major.minor>` if the first ref has no requirements file (`Dockerfile:2-7,17-38`). The runtime image copies the virtual environment and `rootfs`, installs `tini`, runs as `nobody`, declares port `8080/tcp` and volume `/data/privacyidea`, and starts `tini` with the entrypoint (`Dockerfile:48-70`). The application is served by Gunicorn using `privacyidea.app:create_app(...)` (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:39-50`).
+
+`requirements.txt` pins `certifi==2026.10.23`, installed last in the builder (`requirements.txt:4-19`; `Dockerfile:43-45`). privacyIDEA 3.14.1 already pins this version upstream (`requirements.txt:192` at [v3.14.1](https://github.com/privacyidea/privacyidea/blob/v3.14.1/requirements.txt#L192)), so the local pin overrides any future newer upstream certifi pin; recheck it at every privacyIDEA bump. The pin retains the GHSA-6q48-6c7w-9gw2 rationale: it keeps the advisory-linked emSign ECC Root CA - G3 absent; 2026.10.23 additionally removes C1 and C3, while G1 remains present (`requirements.txt:4-18`; [GHSA-6q48-6c7w-9gw2](https://github.com/advisories/GHSA-6q48-6c7w-9gw2)).
 
 ## Build, test, lint, and run commands
 

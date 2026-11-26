@@ -41,6 +41,8 @@ The resolver requires upstream `vV` and exact PyPI package `V` for rebuilds. Doc
 
 ## Promotion and recovery
 
+Before promotion, send one normal request through each supported deployment proxy topology and verify the expected application response. If a proxy or WAF injects or rewrites `Transfer-Encoding` incompatibly, correct its framing and repeat the check before promotion. The supported proxy topologies must be established for each deployment; they are not specified by this repository.
+
 The workflow builds staging tags, tests the same multi-arch index on native amd64 and arm64, verifies installed package version, and runs the blocking CRITICAL Trivy gate. Under the publication lock it reads the full numeric GitHub Releases ledger immediately before deciding `latest`.
 
 Before any consumer write, promotion inspects every target in both registries. Only a confirmed manifest absence counts as absent; authorization, network, and other inspection errors stop promotion. It writes dated immutable tags first, reads each back, then writes the mutable version alias and reads it back. Registry index digests must equal the tested digest. A mismatch freezes further promotion for that version; retain evidence and investigate. Registry repair requires separate approval.
