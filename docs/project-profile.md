@@ -12,7 +12,7 @@
 
 ## Frameworks and image build
 
-The builder creates `/opt/privacyidea`, installs privacyIDEA’s upstream requirements first, the exact privacyIDEA package next, and local `requirements.txt` overrides last (`Dockerfile:14-45`). The runtime image copies the virtual environment and `rootfs`, installs `tini`, runs as `nobody`, declares port `8080/tcp` and volume `/data/privacyidea`, and starts `tini` with the entrypoint (`Dockerfile:48-70`). The application is served by Gunicorn using `privacyidea.app:create_app(...)` (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:39-50`).
+The builder creates `/opt/privacyidea`, installs privacyIDEA’s upstream requirements first, the exact privacyIDEA package next, and local `requirements.txt` overrides last (`Dockerfile:14-45`). `PI_VERSION` defaults to `main` and empty/`main` resolves to the current PyPI privacyIDEA release. The upstream requirements ref defaults to `v<version>`; Dockerfile falls back to `v<major.minor>` if the first ref has no requirements file (`Dockerfile:2-7,17-38`). The runtime image copies the virtual environment and `rootfs`, installs `tini`, runs as `nobody`, declares port `8080/tcp` and volume `/data/privacyidea`, and starts `tini` with the entrypoint (`Dockerfile:48-70`). The application is served by Gunicorn using `privacyidea.app:create_app(...)` (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:39-50`).
 
 ## Build, test, lint, and run commands
 
@@ -41,26 +41,29 @@ The tracked CI gates and their evidence are:
 | `docker compose --file docker-compose-test.yml up --no-build --exit-code-from sut --timeout 120` | Compose integration startup/readiness and provisioned API scenarios; test services use SQLite | `.github/workflows/ci.yml:150-155`; `docker-compose-test.yml:8-18`; `run-tests.sh:9-41`; `tests/integration-provisioned-api.sh:13-115` |
 | Installed-version assertion | Compares the image’s installed privacyIDEA package version with the requested version | `.github/workflows/ci.yml:156-167` |
 
-There is no unit-test framework declared by these tracked gates. `IMAGE=privacyidea:test bash tests/test-db-uri-encoding.sh` is a manual regression check, not invoked by tracked workflows; it checks SQLAlchemy password round-trip after the script’s URI encoding and assembly (`tests/test-db-uri-encoding.sh:10-42`; `.github/workflows/ci.yml:1-171`). The Compose suite uses SQLite, so it does not exercise a live PostgreSQL service (`docker-compose-test.yml:8-18`).
+There is no unit-test framework declared by these tracked gates. `IMAGE=privacyidea:test bash tests/test-db-uri-encoding.sh` is a manual regression check, not invoked by tracked workflows; it checks SQLAlchemy password round-trip after the script’s URI encoding and assembly (`tests/test-db-uri-encoding.sh:10-42`; `.github/workflows/ci.yml:1-171`). The Compose suite uses SQLite, so it does not exercise a live PostgreSQL service (`docker-compose-test.yml:8-18`). Open questions: the manual DB URI check does not establish a live external-database integration gate, and TLS binding plus mounts/permissions still need deployment-specific verification; existing CI does not cover those paths (`.github/workflows/ci.yml:86-171`; `docker-compose-test.yml:8-18`).
 
 ## Runtime and configuration
 
 The startup sequence selects the mount root, sources pre-configuration and pre-startup hooks, then sources `configure_privacyidea.sh` before launching Gunicorn (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:14-31`). Hook scripts are sourced in sorted glob order (`rootfs/usr/local/bin/_privacyidea_common.sh:3-24`). Configure owns generated `pi.cfg`, database URI assembly, file/script handling, bootstrap, keys/admin, and optional schema upgrade (`rootfs/usr/local/bin/configure_privacyidea.sh:19-103,120-196,205-309`). The entrypoint uses `exec` for Gunicorn, making it a direct child of `tini` for signal delivery (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:33-50`).
 
-| Configuration area | Source of truth |
+| Main inputs and defaults | Source owner and evidence |
 | --- | --- |
-| Image defaults, runtime user, data/config paths, declared port/volume, entrypoint | `Dockerfile:48-70` |
-| Database selection/URI, bootstrap, admin and key lifecycle, schema upgrade | `rootfs/usr/local/bin/configure_privacyidea.sh:19-103,205-309` |
-| Rendered privacyIDEA application settings | `rootfs/opt/templates/pi-config.template:5-42` |
-| Application logging configuration | `rootfs/opt/privacyidea/pi-logging.yml:7-25`; selection and file/stdout setup in `rootfs/usr/local/bin/configure_privacyidea.sh:51-103` |
-| Gunicorn worker count, bind, logs, timeouts, keepalive | `rootfs/opt/privacyidea/gunicorn_conf.py:5-48` |
-| TLS activation and bind precedence | `rootfs/usr/local/bin/privacyidea_entrypoint.sh:39-50` |
+| `PI_DATA_DIR=/data/privacyidea` (persistent data and SQLite DB); `PI_CFG_DIR=/etc/privacyidea`; `PI_CFG_FILE=pi.cfg`; image volume is `/data/privacyidea` | Docker defaults and volume: `Dockerfile:51-69`; SQLite URI: `rootfs/usr/local/bin/configure_privacyidea.sh:79-95`; generated config path: `rootfs/usr/local/bin/configure_privacyidea.sh:106-117` |
+| `PI_DB_VENDOR=sqlite`; empty `SQLALCHEMY_DATABASE_URI` selects `PI_DB_*` construction, while a supplied URI overrides those fields. SQLite stores `privacyidea.db` under `PI_DATA_DIR`; non-SQLite vendor inputs and DB password are required when constructing that URI. | Image default: `Dockerfile:51-55`; selection, URI override, and vendor-specific URI: `rootfs/usr/local/bin/configure_privacyidea.sh:19-103` |
+| `PI_SECRET_KEY` and `PI_PEPPER` are required; there is no source default. | Template exits if either is missing: `rootfs/opt/templates/pi-config.template:5-13` |
+| `PI_SKIP_BOOTSTRAP=false`; `PI_AUTO_UPDATE=false`. Bootstrap marker is `${PI_DATA_DIR}/.privacyidea_initialized`; update runs the schema upgrade when enabled. | Image defaults: `Dockerfile:51-55`; bootstrap and marker: `rootfs/usr/local/bin/configure_privacyidea.sh:198-220,248-295`; schema upgrade: `rootfs/usr/local/bin/configure_privacyidea.sh:297-304` |
+| `PI_LOGLEVEL=INFO`; `PI_LOGFILE` unset uses stdout, a real path selects rotating-file logging; logging config defaults to `/opt/privacyidea/pi-logging.yml`. | Template defaults: `rootfs/opt/templates/pi-config.template:31-33`; log level and destination: `rootfs/usr/local/bin/configure_privacyidea.sh:120-164`; handlers: `rootfs/opt/privacyidea/pi-logging.yml:7-25` |
+| Plain HTTP Gunicorn bind defaults to `0.0.0.0:8080`; `GUNICORN_BIND` overrides `GUNICORN_HOST` and `GUNICORN_PORT`. | `rootfs/opt/privacyidea/gunicorn_conf.py:12-19` |
+| TLS activates only if both `/etc/privacyidea/server.key` and `/etc/privacyidea/server.crt` exist; bind is `GUNICORN_BIND` if set, otherwise `0.0.0.0:${PI_SSLPORT:-8443}`. Port 8443 is not declared by the image. | `rootfs/usr/local/bin/privacyidea_entrypoint.sh:39-50`; declared port and volume: `Dockerfile:68-70` |
 
-The image declares only `8080/tcp` and `/data/privacyidea` (`Dockerfile:64-70`). TLS starts only when both `/etc/privacyidea/server.key` and `/etc/privacyidea/server.crt` exist. In that mode `GUNICORN_BIND` takes precedence; otherwise the bind defaults to `0.0.0.0:${PI_SSLPORT:-8443}` (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:39-50`). The image does not declare port 8443 (`Dockerfile:68-70`). Gunicorn environment settings should be read from its tracked config (`rootfs/opt/privacyidea/gunicorn_conf.py:5-48`), not inferred from README’s table.
+The image declares only `8080/tcp` and `/data/privacyidea` (`Dockerfile:64-70`). Gunicorn environment settings should be read from its tracked config (`rootfs/opt/privacyidea/gunicorn_conf.py:5-48`), not inferred from README’s table.
 
 ## Release and CI/CD
 
-Pull requests run lint, release-input tests, and amd64/arm64 image tests in `.github/workflows/ci.yml:3-5,13-171`. The release workflow routes `main` to the edge channel and release refs through validation, multi-architecture build/test, scanning, and promotion (`.github/workflows/release.yml:33-50,290-423,435-535,690-749`). The version-check workflow runs on a daily schedule or manual dispatch, discovers upstream versions, applies an approval allowlist, and dispatches/reconciles releases (`.github/workflows/check-pi-version.yml:3-30,90-130,153-180,205-230`). Release input validation is implemented in `.github/scripts/resolve-release-input.sh`; operational tag mutability, rebuild behavior, approval boundaries, and recovery are described in `docs/release-runbook.md:5-22,24-50,52-60`.
+Pull requests run lint, release-input tests, and amd64/arm64 image tests in `.github/workflows/ci.yml:3-5,13-171`. Release has three publication routes (`.github/workflows/release.yml:37-50`): **edge** publishes GHCR `edge` and `sha-<12>` only; **numeric** publishes the dated identity, plain version alias, `v<V>`, and `sha-<12>`, creates a GitHub Release and may move `latest`; **rebuild** publishes only its dated tag and plain version alias in both registries. The workflow’s Trivy SARIF scan reports OS and library vulnerabilities to code scanning and is non-blocking (`.github/workflows/release.yml:387-400,414-419`). The table-format Trivy scan blocks promotion on fixable CRITICAL OS/library findings; `.trivyignore` exceptions are applied (`.github/workflows/release.yml:402-412`).
+
+The version-check workflow runs on a daily schedule or manual dispatch, discovers upstream versions, and dispatches/reconciles releases (`.github/workflows/check-pi-version.yml:3-30,90-130,153-180,205-230`). `FEEDER_APPROVED_VERSIONS` is the member-approved numeric-version allowlist for creating upstream refs and dispatching releases (`docs/release-runbook.md:18-20,52-54`). Release input validation is implemented in `.github/scripts/resolve-release-input.sh:1-252`; promotion in `.github/scripts/promote-release.sh:1-731`; release ref helpers in `.github/scripts/release-refs.sh:1-170`. Operational tag mutability, approval boundaries, and recovery are described in `docs/release-runbook.md:5-22,24-50,52-60`.
 
 README summarizes registries and tag channels (`README.md:17-40`): stable releases are described for Docker Hub, while GHCR carries all channels, including `edge`. It describes version tags as immutable, while `edge` and `sha-<12>` are moving aliases; use the runbook for the precise writer and rebuild rules (`README.md:24-40`; `docs/release-runbook.md:5-16`). Registry contents and workflow execution were not independently verified for this profile.
 
@@ -101,4 +104,4 @@ README summarizes registries and tag channels (`README.md:17-40`): stable releas
 
 ## Last verified date
 
-2026-11-26 against `main` SHA `f3c01c28cefd6f3df6ea2fe95c4653088ee4024e`.
+Verification date: **2026-11-26**, against `main` SHA `f3c01c28cefd6f3df6ea2fe95c4653088ee4024e`.
