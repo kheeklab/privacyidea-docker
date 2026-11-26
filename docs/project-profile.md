@@ -2,13 +2,13 @@
 
 ## Purpose and verified source
 
-`privacyidea-docker` builds a container image that installs privacyIDEA from PyPI on the official Python image (`README.md:5`, `Dockerfile:10,48`). This profile describes tracked `main` at `f3c01c28cefd6f3df6ea2fe95c4653088ee4024e` (2026-11-26). All file references below refer to that commit. Workflow definitions and scripts were inspected; workflow runs, published registry state, and deployment-specific behavior were not independently exercised.
+`privacyidea-docker` builds a container image that installs privacyIDEA from PyPI on the official Python image (`README.md:5`, `Dockerfile:10,48`). This profile describes tracked `main` at `f3c01c28cefd6f3df6ea2fe95c4653088ee4024e` (2026-11-26). All file references below refer to that commit except the dated dependency-pin update below, verified against `main` at `259f8de086a251e9185f333e6df53acb67d26d8c` (2026-11-26). Workflow definitions and scripts were inspected; workflow runs, published registry state, and deployment-specific behavior were not independently exercised.
 
 ## Languages and versions
 
 - Python application/dependencies, based on `python:3.14-slim`, pinned by image index digest (`Dockerfile:1,10,48`). The project installs privacyIDEA from PyPI; the image targets 3.14 and newer (`Dockerfile:17-29,44`; `README.md:30`).
 - Shell scripts run with Bash (`rootfs/usr/local/bin/privacyidea_entrypoint.sh:1-2`; `.github/workflows/ci.yml:59-69`). Workflow tools include actionlint 1.7.12 and container-structure-test 1.22.1 (`.github/workflows/ci.yml:55-69,127-145`).
-- Locally pinned Python overrides are `psycopg2==2.9.13`, `gunicorn==26.2.0`, and `certifi==2026.10.19` (`requirements.txt:1-11`). These are the pins at the recorded commit, not proposed Dependabot versions.
+- Locally pinned Python overrides are `psycopg2==2.9.13`, `gunicorn==27.0.1`, and `certifi==2026.10.23` (`requirements.txt:1-2,19` at `259f8de086a251e9185f333e6df53acb67d26d8c`, 2026-11-26). The psycopg2 pin is unchanged from the profile's recorded commit.
 
 ## Frameworks and image build
 
